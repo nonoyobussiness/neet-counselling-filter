@@ -23,20 +23,22 @@
 - Filter/sort/rank UI (mobile: bottom sheet as the default target, per Design.md) covering the full v1 criteria set (PRD.md §5): **rating, review count, city, distance-from-home, bed count, fees, and type** are real filter/sort/rank criteria with usable coverage — build these as the primary interactions of the app. Bed count (69/69 coverage, but only 3/69 officially sourced — Architecture.md §6/§6b) ships as a full filter/sort/rank criterion, not just card info — every row using the unverified estimate must carry its low-confidence badge in every view that surfaces it (card, table cell, filter chip, sort results, combined-rank results). Fees carry a "verify against the official KNRUHS brochure" caveat (64/69 coverage). Type (govt/private/deemed) is a simple full-coverage categorical filter. NIRF rank is sparse (1/69) — show as card info only, not a filter. Patient count, faculty quality, hostel/infra have no data at all — drop them from PRD.md §5's filter list for v1, or keep as a manual/qualitative note field if you still want the column to exist.
 - Support combined weighted ranking across any subset of the above (Architecture.md §5) — e.g. "rank by bed count + distance" — not just single-field sorting, using the same generic engine for both.
 - Distance filter: use each college's hardcoded lat/lng (Architecture.md §5) and the same city list for the user's home city — no live geocoding.
-- **Shipped as:** `CollegeCard.tsx`, `FilterControls.tsx`, `MobileBottomSheet.tsx`, `ActiveFilterChips.tsx`, `useCollegeFilter.ts` (see Memory.md's Phase 3 entry). No table view shipped yet — see Phase 4.5.
+- **Shipped as:** `CollegeCard.tsx`, `FilterControls.tsx`, `MobileBottomSheet.tsx`, `ActiveFilterChips.tsx`, `useCollegeFilter.ts` (see Memory.md's Phase 3 entry). Table view shipped in the Phase 4.5 catch-up pass as `CollegeTable.tsx`.
 
 ## Phase 4 — PDF export directly from live browse view
-- The separate shortlist concept was removed: the PDF export always reflects whatever colleges are currently visible under the active filter/sort/rank in the browse view, in that exact on-screen order.
-- PDF export reads directly from the live `filteredRankedColleges` array with no separate sort step or independent shortlist array.
+- The separate shortlist concept was removed: the PDF export always reflects whatever colleges are currently visible under the active filter/sort/rank in the browse view, in that exact on-screen order — including any manual drag-to-reorder override (see Memory.md's drag-to-reorder entry).
+- PDF export reads directly from the live `filteredRankedColleges`/`displayColleges` array with no separate sort step or independent shortlist array.
 - Compact 4-column submission table format: priority order number (`01`, `02`...), `college_code` (primary column; fallback to full college name if null), college name, city.
 - Official header ("KNRUHS · NEET UG CHOICE SELECTION FORM", "Telangana MBBS Priority List") and data provenance footnote preserved.
 - Export triggers (Download PDF and Print) live alongside browse controls in the header, meta bar, and mobile action triggers.
-- **Shipped as:** `src/utils/pdfExport.ts`, `src/App.tsx`, `src/index.css`. Shortlist panels, stamp animations, and manual shortlist storage have been removed.
+- **Shipped as:** `src/utils/pdfExport.ts`, `src/App.tsx`, `src/index.css`. Shortlist panels, stamp animations, and manual shortlist storage have been removed. Manual drag-to-reorder (card and table) lives directly in `useCollegeFilter.ts` and its consuming components — see Memory.md.
 
 ## Phase 5 — Polish & responsiveness
-- Full mobile responsiveness pass, including the table view's horizontal-scroll/sticky-column behavior and the shortlist's lock/unfreeze toggle.
-- Accessibility pass (contrast, focus states, reduced-motion — including the batched stamp animation for bulk shortlist adds) per Design.md quality floor.
-- Empty/error states written in-product per interface voice (no logins to worry about, but handle "no results match your filters" etc. well).
+- Full mobile responsiveness pass, including table view's horizontal scroll (whole table scrolls as one block, no sticky/frozen name column — see Memory.md's mobile-scroll fix) and the drag-to-reorder controls on both card and table view.
+- WCAG AA contrast check against Design.md's palette, visible keyboard focus states using the `surgical` token at 2px.
+- `prefers-reduced-motion` behavior for any remaining transitions (drag-drop feedback, sort re-ordering) — should degrade gracefully.
+- Empty/error state copy: no colleges match current filters, search with zero results, and the null-`college_code` fallback (full name shown instead) rendering correctly both on-screen and in the exported PDF.
+- Re-confirm PRD.md §8-9's success criteria/open questions are addressed or explicitly deferred.
 
 ## Phase 6 — Test & ship
 - Test with a handful of real users (sister + a few others) doing an actual mock choice-filling run.
@@ -46,6 +48,6 @@
 ## Phase 7 — Post-launch (v2 candidates, not v1 scope)
 - Rank/cutoff predictor.
 - Broader faculty-quality data source if one becomes available.
-- Possibly account-free "save my shortlist via link" (no login, but persistent shareable state).
+- Possibly account-free "save my list via link" (no login, but persistent shareable state).
 
 Note: update Memory.md at the end of every session regardless of which phase you're in — phases are a guide for sequencing, not a substitute for the iteration log.

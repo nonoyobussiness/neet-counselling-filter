@@ -371,3 +371,18 @@ Each entry should be quick to write and quick to scan — not a full changelog, 
   - None. Production build is 100% clean and fully functional.
 - Next up:
   - Phase 6 — Mock choice-filling test run with users and deploy.
+
+### [2026-08-29] — Documentation: Created Root README.md
+- What changed:
+  - Created a comprehensive, structured root [`README.md`](file:///D:/codes/devudaaaaa/neet-counselling-filter/README.md) synthesizing the project architecture, features, data provenance, design system, and development guidelines.
+  - Included:
+    - Overview and problem statement (Telangana NEET UG choice-filling for KNRUHS/MCC).
+    - Key features: 69-college directory, multi-criteria ranking engine, strategy presets, client-side Haversine distance, dual view modes (Card vs Table), in-memory drag-to-reorder, and direct 4-column compact PDF/print export.
+    - Data provenance explanation: verified bed figures (Osmania, Kakatiya, Gandhi) vs. `~est` secondary report indicators.
+    - Design tokens table and typography hierarchy from `Design.md`.
+    - Local setup instructions, test engine commands, build scripts, and directory tree.
+  - Verified clean production build (`npm run build`).
+- What's broken or incomplete:
+  - None.
+- Next up:
+  - Phase 6 — Mock choice-filling test run with users and deploy.

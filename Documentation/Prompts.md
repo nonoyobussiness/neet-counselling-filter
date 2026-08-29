@@ -116,13 +116,28 @@ Shortlist-specific catch-up and table mirroring steps are superseded since short
 ## Phase 5 — Polish & responsiveness
 ```
 Read Memory.md first to see what's already been done and what's in progress — don't assume a
-blank slate. Read Design.md's accessibility/quality-floor section. Do a full pass: mobile responsiveness down to
-small viewports — including the table view's horizontal-scroll/sticky-column behavior and the
-shortlist's lock/unfreeze toggle — WCAG AA contrast check against the defined palette, visible focus
-states using the surgical token, reduced-motion behavior (including the batched stamp animation used
-for bulk shortlist adds), and empty/error state copy written in the interface's voice (plain,
-specific, no filler) per the writing guidance implicitly carried from Design.md's tone.
-When done, update Memory.md with what was fixed and anything deferred.
+blank slate. There is no shortlist, stamp animation, or lock/unfreeze toggle in the current app
+(removed — see Memory.md's shortlist-removal entry) — do this pass against what's actually live:
+the browse view with card/table toggle, manual drag-to-reorder on both views, and direct PDF/print
+export. Read Design.md's accessibility/quality-floor section before starting.
+
+Do a full pass:
+- Mobile responsiveness down to small viewports, including table view's horizontal scroll (no
+  sticky column) and the drag-to-reorder controls (drag handle + up/down buttons) on both card and
+  table view.
+- WCAG AA contrast check against the palette in Design.md.
+- Visible keyboard focus states using the `surgical` token at 2px.
+- `prefers-reduced-motion` behavior for any remaining transitions (drag-drop feedback, sort
+  re-ordering) — should degrade gracefully, not jump or flash.
+- Empty/error state copy: no colleges match current filters, search with zero results, and the
+  edge case of a college with a null `college_code` appearing correctly (full name fallback) in
+  both the on-screen table and the exported PDF.
+- Re-read PRD.md §8-9 (success criteria and open questions) and confirm each is addressed or
+  explicitly deferred — note anything still open.
+- Confirm production build (`npm run build`) is clean with no console warnings/errors.
+
+When done, update Memory.md with what was fixed, anything deferred as a known v1 gap, and confirm
+it's ready to deploy per Architecture.md §3 (Vercel/Netlify, static build, no backend).
 ```
 
 ## Phase 6 — Test & ship
