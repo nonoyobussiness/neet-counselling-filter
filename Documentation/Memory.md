@@ -128,3 +128,40 @@ Each entry should be quick to write and quick to scan — not a full changelog, 
 - What's broken or incomplete: `colleges_enriched.csv` is not yet converted to `src/data/colleges.json` (Phase 1 task).
 - Next up: Phase 1 — Convert `colleges_enriched.csv` to `colleges.json` and bundle with frontend.
 
+### [2026-08-29] — Phase 1 (data) — Converted colleges_enriched.csv to colleges.json
+- What changed:
+  - Created `scripts/convert.js` and converted `colleges_enriched.csv` into `src/data/colleges.json` (and `colleges.json` at root).
+  - Preserved all 17 fields exactly matching Architecture.md §4: `id`, `name`, `college_code`, `year_established`, `fee_category_a`, `fee_management_quota`, `fee_nri_quota`, `city`, `type`, `lat`, `lng`, `nirf_rank`, `nirf_score`, `beds`, `google_rating`, `google_review_count`, and `data_notes`.
+  - Parsed numbers into numeric types while keeping blank/empty cells strictly as `null` (no fabricated defaults or imputed averages, per Rules.md #9).
+  - Preserved all `data_notes` verbatim, including the unverified-estimate caveats for the 66 bed values and fee verification notes.
+  - Updated `src/App.tsx` to load `src/data/colleges.json` with the `College` interface and verified type safety via `npm run build`.
+- Why: Complete Phase 1 data bundling requirement for the static SPA architecture.
+- Assumptions made / coverage confirmation (all matches Architecture.md §6):
+  - Total colleges: 69 rows.
+  - Reviews (`google_rating` / `google_review_count`): 68/69 have reviews; 1 college (Mamata Academy of Medical Sciences) is `null` as expected.
+  - NIRF rank (`nirf_rank`): 1/69 (Osmania Medical College, #48); 68/69 are `null` as expected.
+  - Beds (`beds`): 69/69 populated, where 3 are officially sourced (Osmania, Kakatiya, Gandhi) and 66 are unverified estimates carrying the caveat in `data_notes`.
+  - `college_code` & `year_established`: 62/69 populated; 7/69 are `null` (not on the merit-rank reference list).
+  - Fees (`fee_category_a`, `fee_management_quota`, `fee_nri_quota`): 64/69 have at least one fee field; 5/69 have all fee fields `null` (not on the source table).
+  - Location & Type (`city`, `type`, `lat`, `lng`): 69/69 populated.
+- What's broken or incomplete: None. JSON is bundled and typechecked.
+- Next up: Phase 2 / Phase 3 — Core frontend: filter rail, generic ranking engine, and card list UI.
+
+### [2026-08-29] — Phase 2 — Client-Side Haversine Distance & Multi-Criteria Ranking Engine
+- What changed:
+  - Implemented client-side Haversine distance calculator in `src/utils/haversine.ts` using hardcoded town-center coordinates from `colleges.json` (no external API, no live geocoding).
+  - Built generic multi-criteria ranking engine in `src/utils/ranking.ts` per Architecture.md §5 and Rules.md #8 & #17:
+    - Registered 5 v1 signals (`google_rating`, `google_review_count`, `beds`, `fee_category_a`, `distance_from_home`).
+    - Explicit normalization directions: `higher_is_better` for rating/reviews/beds; `lower_is_better` (inverted 0–100) for tuition fees and distance.
+    - Added weight validation in `validateWeights` (non-negative numbers, finite values).
+    - Preserved low-confidence flag `isEstimatedBeds` for the 66 unverified bed count rows so badges ride along with sorted/ranked outputs.
+  - Updated `src/App.tsx` with interactive home city selector and weight sliders for live client-side ranking.
+  - Verified through automated tests (`scripts/test-engine.js`) and production build (`npm run build`).
+- Why: Implement Phase 2 frontend data loading and offline ranking computation.
+- Assumptions made / open questions:
+  - Missing signals (e.g. college with null rating or fee) are excluded from the weighted denominator so missing values don't unfairly penalize or distort the score with silent zeros.
+  - Distance calculation relies on pre-populated reference coordinates of Telangana town centers.
+- What's broken or incomplete: Shortlist stamp state and PDF export (Phases 4-5).
+- Next up: Phase 3 / Phase 4 — Detailed filter rail, hall-ticket stub cards, shortlist drawer, and PDF export.
+
+
