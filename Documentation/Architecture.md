@@ -21,8 +21,7 @@
                                   │  - loads JSON once     │
                                   │  - filter/sort/rank UI │
                                   │    (all client-side)   │
-                                  │  - shortlist state      │
-                                  │  - PDF trigger           │
+                                  │  - PDF export trigger  │
                                   └─────────────────────┘
 ```
 
@@ -33,7 +32,7 @@ No backend, no ETL, no scraper, no scheduled script. One static file, loaded onc
 - **Backend**: none for v1. If you later want server-side PDF generation, a tiny serverless function is enough — don't stand up Express/Postgres for that alone.
 - **DB**: none. The colleges dataset is a single `colleges.json` (converted from your filled CSV) bundled into the frontend build and loaded once on page load.
 - **Hosting**: Vercel/Netlify for the frontend. That's it — no backend host, no DB host, no monthly infra cost beyond the free tier.
-- **PDF generation**: client-side with a lightweight lib (e.g. jsPDF or html-to-pdf). Simpler, no server round-trip, no extra cost.
+- **PDF generation**: client-side with a lightweight lib (e.g. jsPDF or html2canvas). Simpler, no server round-trip, no extra cost.
 
 ## 4. Data model (shape of each row in colleges.json)
 
@@ -70,6 +69,10 @@ Do **not** hardcode a single ranked list, and do **not** hardcode the engine to 
 4. Final score = weighted sum of normalized signals the user picked. Sort by that. This makes ranking personal, instant, and fully offline-capable — it just won't reflect anything that changes after today's data pull, which is fine given the one-month scope.
 5. **The confidence flag rides along with the signal, not just the display.** `beds` carries a per-row confidence flag (officially sourced vs. user-supplied estimate — see §6b). When beds feeds into a filter, a plain sort, or a weighted rank, any result that includes an unverified-estimate row must still surface its low-confidence badge — folding the value into a numeric score must never cause that flag to quietly disappear.
 6. **Adding a new criterion later** (e.g. hand-filling more beds, or a brand-new column): (a) add the raw field to `colleges.json`/the `College` type per §4, (b) add one normalization rule + direction for it here, (c) surface it in the filter/sort/weight UI. Nothing else should need to change — that's the whole point of not hardcoding a fixed formula.
+
+## 5b. Browse view modes (card vs. table) and PDF export
+Card view (Design.md's hall-ticket-stub pattern) and table view are **two renderings of the same already-filtered/sorted/ranked array** — a view toggle, not a separate data path or a separate fetch/sort. Clicking a sortable table column header calls the exact same sort logic as the filter rail's sort control (Architecture.md §5), just triggered from a different UI surface. View mode (card/table) is local UI state and defaults to card view.
+The PDF export reads directly from this active filtered/sorted/ranked array in its current on-screen order — no separate shortlist step, no divergent sort. Filtering and ranking the browse view IS the sole mechanism for creating a submission priority order.
 
 ## 6. Scope note: what a real search pass actually turned up
 A full web-search pass was done across all 69 colleges for the remaining PRD.md §5 criteria (beds, patient count, NIRF rank, faculty quality, seats). Honest result, per criterion:

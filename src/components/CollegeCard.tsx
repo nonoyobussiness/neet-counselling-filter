@@ -1,13 +1,25 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { RankedCollege } from '../utils/ranking';
-import { Bookmark, MapPin, Award, AlertCircle, Calendar, Bed, Star, ShieldCheck, IndianRupee } from 'lucide-react';
+import {
+  MapPin,
+  Award,
+  AlertCircle,
+  Calendar,
+  Bed,
+  Star,
+  ShieldCheck,
+  IndianRupee,
+  ChevronUp,
+  ChevronDown,
+  GripVertical,
+} from 'lucide-react';
 
 interface CollegeCardProps {
   rankedItem: RankedCollege;
   rankIndex: number;
   homeCity: string;
-  isShortlisted: boolean;
-  onToggleShortlist: (id: string | number) => void;
+  totalCount: number;
+  onReorder: (sourceIndex: number, destinationIndex: number) => void;
   showScoreBreakdown?: boolean;
 }
 
@@ -15,10 +27,15 @@ export const CollegeCard: React.FC<CollegeCardProps> = ({
   rankedItem,
   rankIndex,
   homeCity,
-  isShortlisted,
-  onToggleShortlist,
+  totalCount,
+  onReorder,
 }) => {
   const { college, distance_from_home, overallScore, isEstimatedBeds } = rankedItem;
+  const [isDragOver, setIsDragOver] = useState(false);
+
+  const currentIndex = rankIndex - 1;
+  const isFirst = currentIndex === 0;
+  const isLast = currentIndex === totalCount - 1;
 
   // Format fee for clean display
   const formatFee = (amount: number | null) => {
@@ -33,30 +50,89 @@ export const CollegeCard: React.FC<CollegeCardProps> = ({
   const isGovt = college.type === 'government';
   const isDeemed = college.type === 'deemed';
 
+  const handleDragStart = (e: React.DragEvent) => {
+    e.dataTransfer.setData('text/plain', String(currentIndex));
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (!isDragOver) setIsDragOver(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const sourceIndexStr = e.dataTransfer.getData('text/plain');
+    const sourceIndex = parseInt(sourceIndexStr, 10);
+    if (!isNaN(sourceIndex) && sourceIndex !== currentIndex) {
+      onReorder(sourceIndex, currentIndex);
+    }
+  };
+
   return (
     <article
       aria-label={`${college.name} - Match rank #${rankIndex}`}
+      draggable
+      onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
       className={`relative bg-white border transition-all duration-150 shadow-2xs ${
-        isShortlisted
-          ? 'border-marigold bg-white/95 ring-1 ring-marigold/30'
-          : 'border-line hover:border-surgical'
+        isDragOver ? 'border-surgical border-2 bg-surgical/5 scale-[1.01]' : 'border-line hover:border-surgical/80'
       }`}
     >
-      {/* Hall-ticket stub perforated / solid indicator on left edge */}
-      <div
-        className={`absolute left-0 top-0 bottom-0 w-1.5 ${
-          isShortlisted ? 'bg-marigold' : 'bg-surgical'
-        }`}
-      />
+      {/* Hall-ticket stub indicator on left edge */}
+      <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-surgical" />
 
       <div className="p-4 sm:p-5 pl-4 sm:pl-5">
-        {/* Top bar: Rank, Code, Badges, Shortlist Stamp */}
+        {/* Top bar: Reorder controls, Rank, Code, Badges */}
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-2 flex-wrap">
-            {/* Rank badge */}
-            <span className="font-mono text-xs font-bold text-rank-red bg-rank-red/10 border border-rank-red/20 px-2 py-0.5 tracking-tight">
-              #{rankIndex}
-            </span>
+            {/* Rank badge + Reorder Drag Handle & Controls */}
+            <div className="flex items-center gap-1 bg-paper border border-line p-0.5">
+              {/* Drag Grip Handle */}
+              <div
+                className="cursor-grab active:cursor-grabbing p-0.5 text-ink/40 hover:text-ink"
+                title="Drag to reorder position in list"
+              >
+                <GripVertical className="w-3.5 h-3.5" />
+              </div>
+
+              {/* Rank Number */}
+              <span className="font-mono text-xs font-bold text-rank-red px-1.5 py-0.5 tracking-tight">
+                #{rankIndex}
+              </span>
+
+              {/* Mobile / Touch Move Up & Down Buttons */}
+              <div className="flex items-center gap-0.5 border-l border-line/60 pl-0.5">
+                <button
+                  type="button"
+                  onClick={() => onReorder(currentIndex, currentIndex - 1)}
+                  disabled={isFirst}
+                  className="p-1 hover:bg-white text-ink/60 hover:text-ink disabled:opacity-20 disabled:hover:bg-transparent"
+                  title="Move college up in priority order"
+                  aria-label={`Move ${college.name} up`}
+                >
+                  <ChevronUp className="w-3 h-3" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onReorder(currentIndex, currentIndex + 1)}
+                  disabled={isLast}
+                  className="p-1 hover:bg-white text-ink/60 hover:text-ink disabled:opacity-20 disabled:hover:bg-transparent"
+                  title="Move college down in priority order"
+                  aria-label={`Move ${college.name} down`}
+                >
+                  <ChevronDown className="w-3 h-3" />
+                </button>
+              </div>
+            </div>
 
             {/* Official College Code (omit gracefully if null) */}
             {college.college_code && (
@@ -87,20 +163,14 @@ export const CollegeCard: React.FC<CollegeCardProps> = ({
             )}
           </div>
 
-          {/* Shortlist Action */}
-          <button
-            type="button"
-            onClick={() => onToggleShortlist(college.id)}
-            aria-label={isShortlisted ? `Remove ${college.name} from shortlist` : `Add ${college.name} to shortlist`}
-            className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-mono border transition-all ${
-              isShortlisted
-                ? 'bg-marigold text-ink font-semibold border-marigold shadow-xs'
-                : 'bg-paper hover:bg-white text-ink/70 hover:text-ink border-line'
-            }`}
-          >
-            <Bookmark className={`w-3.5 h-3.5 ${isShortlisted ? 'fill-ink text-ink' : ''}`} />
-            <span>{isShortlisted ? 'SHORTLISTED' : 'SHORTLIST'}</span>
-          </button>
+          {/* Top-right Match Score */}
+          {overallScore !== null && (
+            <div className="font-mono font-bold text-xs bg-surgical/10 border border-surgical/20 text-surgical px-2 py-0.5 flex items-center gap-1">
+              <span>Score:</span>
+              <span className="text-sm font-bold text-surgical">{overallScore}</span>
+              <span className="text-[10px] text-surgical/70">/100</span>
+            </div>
+          )}
         </div>
 
         {/* College Name & City */}
@@ -184,26 +254,19 @@ export const CollegeCard: React.FC<CollegeCardProps> = ({
             </div>
           </div>
 
-          {/* Management / NIRF / Match Score */}
+          {/* Management Fee / NIRF */}
           <div className="space-y-0.5 text-right sm:text-left">
             <span className="text-[10px] font-mono uppercase tracking-wider text-ink/60 flex items-center justify-end sm:justify-start gap-1">
               <Award className="w-3 h-3 text-surgical" />
-              {overallScore !== null ? 'Match Score' : 'Mgmt Quota (Cat-B)'}
+              Mgmt Quota (Cat-B)
             </span>
-            {overallScore !== null ? (
-              <div className="font-mono font-bold text-base text-surgical flex items-baseline justify-end sm:justify-start gap-0.5">
-                {overallScore}
-                <span className="text-[10px] text-ink/50 font-normal">/100</span>
-              </div>
-            ) : (
-              <div className="font-mono text-sm text-ink font-semibold">
-                {isGovt ? (
-                  <span className="text-xs text-ink/50 font-normal">N/A (Govt)</span>
-                ) : (
-                  formatFee(college.fee_management_quota)
-                )}
-              </div>
-            )}
+            <div className="font-mono text-sm text-ink font-semibold">
+              {isGovt ? (
+                <span className="text-xs text-ink/50 font-normal">N/A (Govt)</span>
+              ) : (
+                formatFee(college.fee_management_quota)
+              )}
+            </div>
           </div>
         </div>
 
@@ -224,7 +287,7 @@ export const CollegeCard: React.FC<CollegeCardProps> = ({
           </div>
         )}
 
-        {/* Sourced Data Caveats Footer (if beds or fee caveat exists) */}
+        {/* Sourced Data Caveats Footer */}
         {college.data_notes && (
           <div className="mt-2 pt-1.5 border-t border-dashed border-line/50 text-[10px] text-ink/50 font-sans flex items-start gap-1 leading-normal">
             <AlertCircle className="w-2.5 h-2.5 text-ink/40 mt-0.5 shrink-0" />

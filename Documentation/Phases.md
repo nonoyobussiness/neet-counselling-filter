@@ -15,24 +15,27 @@
 
 ## Phase 2 — Frontend data loading
 - Load `colleges.json` once on page mount.
-- Compute the li
-ve ranking score and haversine distance entirely in the browser (Architecture.md §5) — no backend, no `/rank` endpoint.
+- Compute the live ranking score and haversine distance entirely in the browser (Architecture.md §5) — no backend, no `/rank` endpoint.
 - Basic validation on the user's filter/weight inputs.
 
 ## Phase 3 — Core frontend: browse + filter/sort/rank
-- College list UI using Design.md card pattern.
-- Filter/sort/rank UI (mobile: bottom sheet as the default target, per Design.md) covering the full v1 criteria set (PRD.md §5): **rating, review count, city, distance-from-home, bed count, fees, and type** are real filter/sort/rank criteria with usable coverage — build these as the primary interactions of the app. Bed count (69/69 coverage, but only 3/69 officially sourced — Architecture.md §6/§6b) ships as a full filter/sort/rank criterion, not just card info — every row using the unverified estimate must carry its low-confidence badge in every view that surfaces it (card, filter chip, sort results, combined-rank results). Fees carry a "verify against the official KNRUHS brochure" caveat (64/69 coverage). Type (govt/private/deemed) is a simple full-coverage categorical filter. NIRF rank is sparse (1/69) — show as card info only, not a filter. Patient count, faculty quality, hostel/infra have no data at all — drop them from PRD.md §5's filter list for v1, or keep as a manual/qualitative note field if you still want the column to exist.
+- College list UI using Design.md card pattern, plus a **table view toggle** (Design.md, Architecture.md §5c) rendering the same filtered/sorted/ranked array in a denser, sortable-column table — column headers reuse the exact same sort logic as the filter rail, not a second implementation. Default to card view.
+- Filter/sort/rank UI (mobile: bottom sheet as the default target, per Design.md) covering the full v1 criteria set (PRD.md §5): **rating, review count, city, distance-from-home, bed count, fees, and type** are real filter/sort/rank criteria with usable coverage — build these as the primary interactions of the app. Bed count (69/69 coverage, but only 3/69 officially sourced — Architecture.md §6/§6b) ships as a full filter/sort/rank criterion, not just card info — every row using the unverified estimate must carry its low-confidence badge in every view that surfaces it (card, table cell, filter chip, sort results, combined-rank results). Fees carry a "verify against the official KNRUHS brochure" caveat (64/69 coverage). Type (govt/private/deemed) is a simple full-coverage categorical filter. NIRF rank is sparse (1/69) — show as card info only, not a filter. Patient count, faculty quality, hostel/infra have no data at all — drop them from PRD.md §5's filter list for v1, or keep as a manual/qualitative note field if you still want the column to exist.
 - Support combined weighted ranking across any subset of the above (Architecture.md §5) — e.g. "rank by bed count + distance" — not just single-field sorting, using the same generic engine for both.
 - Distance filter: use each college's hardcoded lat/lng (Architecture.md §5) and the same city list for the user's home city — no live geocoding.
+- **Shipped as:** `CollegeCard.tsx`, `FilterControls.tsx`, `MobileBottomSheet.tsx`, `ActiveFilterChips.tsx`, `useCollegeFilter.ts` (see Memory.md's Phase 3 entry). No table view shipped yet — see Phase 4.5.
 
-## Phase 4 — Shortlist + PDF export
-- Shortlist state (add/remove colleges, the "stamp" interaction from Design.md).
-- Shortlist panel UI.
-- PDF export matching shortlist panel styling (Design.md).
+## Phase 4 — PDF export directly from live browse view
+- The separate shortlist concept was removed: the PDF export always reflects whatever colleges are currently visible under the active filter/sort/rank in the browse view, in that exact on-screen order.
+- PDF export reads directly from the live `filteredRankedColleges` array with no separate sort step or independent shortlist array.
+- Compact 4-column submission table format: priority order number (`01`, `02`...), `college_code` (primary column; fallback to full college name if null), college name, city.
+- Official header ("KNRUHS · NEET UG CHOICE SELECTION FORM", "Telangana MBBS Priority List") and data provenance footnote preserved.
+- Export triggers (Download PDF and Print) live alongside browse controls in the header, meta bar, and mobile action triggers.
+- **Shipped as:** `src/utils/pdfExport.ts`, `src/App.tsx`, `src/index.css`. Shortlist panels, stamp animations, and manual shortlist storage have been removed.
 
 ## Phase 5 — Polish & responsiveness
-- Full mobile responsiveness pass.
-- Accessibility pass (contrast, focus states, reduced-motion) per Design.md quality floor.
+- Full mobile responsiveness pass, including the table view's horizontal-scroll/sticky-column behavior and the shortlist's lock/unfreeze toggle.
+- Accessibility pass (contrast, focus states, reduced-motion — including the batched stamp animation for bulk shortlist adds) per Design.md quality floor.
 - Empty/error states written in-product per interface voice (no logins to worry about, but handle "no results match your filters" etc. well).
 
 ## Phase 6 — Test & ship

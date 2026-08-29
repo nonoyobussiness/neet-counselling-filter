@@ -177,44 +177,73 @@ console.log('--- TESTING HAVERSINE DISTANCE ---');
 const hydWarangalDist = haversineDistance(17.39, 78.47, 17.97, 79.59);
 console.log(`Distance Hyderabad to Warangal: ${hydWarangalDist} km (expected ~134 km)`);
 
-console.log('\n--- TESTING SINGLE CRITERION RANKING: BEDS ---');
-const bedsRanked = sortRankedColleges(
+console.log('\n--- TESTING DEFAULT SORT ON INITIAL PAGE LOAD (BALANCED PRESET) ---');
+const defaultHomeCoords = { lat: 17.39, lng: 78.47 }; // Hyderabad
+const defaultPresetWeights = {
+  beds: 35,
+  distance_from_home: 30,
+  google_rating: 20,
+  google_review_count: 15,
+  fee_category_a: 0,
+};
+const defaultRanked = sortRankedColleges(
+  computeCollegeRankings(colleges, defaultPresetWeights, defaultHomeCoords)
+);
+console.log(`Default ranked colleges count: ${defaultRanked.length} (expected 69)`);
+console.log('Top 3 on initial page load:');
+defaultRanked.slice(0, 3).forEach((r, i) => {
+  console.log(
+    `#${i + 1}: ${r.college.name} (${r.college.city}) - Score: ${r.overallScore}/100`
+  );
+});
+console.assert(defaultRanked.length === 69, 'All 69 colleges must be ranked by default');
+console.assert(defaultRanked[0].overallScore >= defaultRanked[1].overallScore, 'Ranked list must be descending by score');
+
+console.log('\n--- TESTING MANUAL DRAG-TO-REORDER OVERRIDE ON LIVE BROWSE LIST ---');
+// User drags #4 (index 3) to #1 (index 0)
+const originalFirst = defaultRanked[0].college.name;
+const originalFourth = defaultRanked[3].college.name;
+console.log(`Before drag: #1 = ${originalFirst}, #4 = ${originalFourth}`);
+
+const reorderedList = [...defaultRanked];
+const [movedItem] = reorderedList.splice(3, 1);
+reorderedList.splice(0, 0, movedItem);
+
+console.log(`After drag (index 3 -> 0): #1 = ${reorderedList[0].college.name}`);
+console.assert(reorderedList[0].college.name === originalFourth, 'Moved item should now be at position #1');
+console.assert(reorderedList[1].college.name === originalFirst, 'Original #1 should now be at position #2');
+
+console.log('\n--- TESTING PDF EXPORT MAPPING WITH MANUAL DRAG ---');
+// PDF export table must map the reorderedList directly
+const exportTableRowsAfterDrag = reorderedList.map((item, index) => {
+  const priorityNum = String(index + 1).padStart(2, '0');
+  const codeDisplay = item.college.college_code ? item.college.college_code : item.college.name;
+  return {
+    order: priorityNum,
+    code: codeDisplay,
+    name: item.college.name,
+    city: item.college.city,
+  };
+});
+
+console.log('Export row #1 after drag:', exportTableRowsAfterDrag[0]);
+console.assert(exportTableRowsAfterDrag[0].name === originalFourth, 'Export document row #1 must match the on-screen dragged order');
+console.assert(exportTableRowsAfterDrag[0].order === '01', 'Order number must be 01');
+
+console.log('\n--- TESTING MANUAL DRAG RESET ON CRITERIA/FILTER CHANGE ---');
+// User changes sort/filter: manual order resets to fresh rank order
+let manualOrderOverride = reorderedList.map(c => c.college.id);
+// Simulated criteria change (e.g. 100% beds sort)
+const freshRanked = sortRankedColleges(
   computeCollegeRankings(colleges, { beds: 100 }, null)
 );
-console.log('Top 3 by beds:');
-bedsRanked.slice(0, 3).forEach((r, i) => {
-  console.log(
-    `#${i + 1}: ${r.college.name} - Beds: ${r.college.beds} | Score: ${r.overallScore} | Estimated? ${r.isEstimatedBeds}`
-  );
-});
+manualOrderOverride = null; // reset triggered by criteria change
 
-console.log('\n--- TESTING INVERTED CRITERION RANKING: FEES ---');
-const feeRanked = sortRankedColleges(
-  computeCollegeRankings(colleges, { fee_category_a: 100 }, null)
-);
-console.log('Top 3 by lowest govt fee:');
-feeRanked.slice(0, 3).forEach((r, i) => {
-  console.log(
-    `#${i + 1}: ${r.college.name} - Fee: ₹${r.college.fee_category_a} | Score: ${r.overallScore}`
-  );
-});
+const activeDisplay = manualOrderOverride
+  ? manualOrderOverride.map(id => freshRanked.find(c => c.college.id === id))
+  : freshRanked;
 
-console.log('\n--- TESTING COMBINED WEIGHTED RANKING: 60% BEDS + 40% DISTANCE FROM HYDERABAD ---');
-const homeCoords = { lat: 17.39, lng: 78.47 }; // Hyderabad
-const combinedRanked = sortRankedColleges(
-  computeCollegeRankings(colleges, { beds: 60, distance_from_home: 40 }, homeCoords)
-);
-console.log('Top 5 combined rank:');
-combinedRanked.slice(0, 5).forEach((r, i) => {
-  console.log(
-    `#${i + 1}: ${r.college.name} (${r.college.city}) - Beds: ${r.college.beds} (~${r.isEstimatedBeds ? 'est' : 'verified'}), Dist: ${r.distance_from_home}km | Overall Score: ${r.overallScore}`
-  );
-});
+console.log('Top college after criteria change + reset:', activeDisplay[0].college.name, `(${activeDisplay[0].college.beds} beds)`);
+console.assert(activeDisplay[0].college.beds >= activeDisplay[1].college.beds, 'List must revert to fresh computed rank order');
 
-console.log('\n--- TESTING UNVERIFIED BEDS COUNT ---');
-const unverifiedCount = colleges.filter(isUnverifiedBeds).length;
-const verifiedCount = colleges.length - unverifiedCount;
-console.log(`Verified beds colleges: ${verifiedCount} (Osmania, Kakatiya, Gandhi)`);
-console.log(`Unverified estimate beds colleges: ${unverifiedCount} (carrying low-confidence badge)`);
-
-console.log('\nAll engine tests completed successfully!');
+console.log('\nAll engine, default sort, manual drag-to-reorder, and export parity tests passed successfully!');

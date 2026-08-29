@@ -18,3 +18,46 @@ body {
   outline: 2px solid #3E7C74;
   outline-offset: 2px;
 }
+
+
+/* Print styles for pixel-perfect document export */
+@media print {
+  body {
+    background-color: white !important;
+    color: #152B3C !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  header, aside, nav, .no-print, button {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  #printable-submission-document,
+  .print-submission-document {
+    display: block !important;
+    position: static !important;
+    left: auto !important;
+    top: auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 8mm !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+  table {
+    page-break-inside: auto;
+  }
+  tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+  thead {
+    display: table-header-group;
+  }
+  tfoot {
+    display: table-footer-group;
+  }
+}

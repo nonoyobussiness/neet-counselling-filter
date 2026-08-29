@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import rawColleges from '../data/colleges.json';
 import { College } from '../types/college';
 import { FilterState, CollegeType, RANKING_PRESETS } from '../types/filter';
@@ -7,6 +7,7 @@ import {
   CriterionId,
   computeCollegeRankings,
   sortRankedColleges,
+  RankedCollege,
 } from '../utils/ranking';
 
 const allColleges = rawColleges as College[];
@@ -24,33 +25,14 @@ const INITIAL_FILTER_STATE: FilterState = {
   activePresetId: 'balanced',
 };
 
-const SHORTLIST_STORAGE_KEY = 'neet_shortlisted_college_ids';
-
 export function useCollegeFilter() {
   const [filters, setFilters] = useState<FilterState>(INITIAL_FILTER_STATE);
-  const [shortlistIds, setShortlistIds] = useState<(string | number)[]>(() => {
-    try {
-      const saved = localStorage.getItem(SHORTLIST_STORAGE_KEY);
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
+  const [manualOrderIds, setManualOrderIds] = useState<(string | number)[] | null>(null);
 
-  // Save shortlist to localStorage for convenience
+  // When any filter or weight changes, reset manual reordering to fresh rank order
   useEffect(() => {
-    try {
-      localStorage.setItem(SHORTLIST_STORAGE_KEY, JSON.stringify(shortlistIds));
-    } catch {
-      // ignore
-    }
-  }, [shortlistIds]);
-
-  const toggleShortlist = (id: string | number) => {
-    setShortlistIds((prev) =>
-      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
-    );
-  };
+    setManualOrderIds(null);
+  }, [filters]);
 
   // Home coordinates
   const homeCoords = useMemo(() => {
@@ -67,13 +49,18 @@ export function useCollegeFilter() {
     return Array.from(set).sort();
   }, []);
 
-  // Compute ranking & apply filters
-  const { filteredRankedColleges, totalActiveFiltersCount } = useMemo(() => {
-    // 1. First compute distance and score for all colleges
-    const allRanked = computeCollegeRankings(allColleges, filters.weights, homeCoords);
+  // Compute all rankings for all 69 colleges
+  const allRankedColleges = useMemo(() => {
+    return computeCollegeRankings(allColleges, filters.weights, homeCoords);
+  }, [filters.weights, homeCoords]);
 
-    // 2. Filter by hard constraints
-    const filtered = allRanked.filter(({ college, distance_from_home }) => {
+  const allRankedCollegesSorted = useMemo(() => {
+    return sortRankedColleges(allRankedColleges);
+  }, [allRankedColleges]);
+
+  // Filter by hard constraints and sort by active multi-criteria / single sort
+  const { filteredRankedColleges, totalActiveFiltersCount } = useMemo(() => {
+    const filtered = allRankedColleges.filter(({ college, distance_from_home }) => {
       // Search term
       if (filters.search.trim()) {
         const query = filters.search.toLowerCase();
@@ -118,7 +105,6 @@ export function useCollegeFilter() {
       return true;
     });
 
-    // 3. Sort according to weighted ranking score (or fallback)
     const sorted = sortRankedColleges(filtered);
 
     // Count active filters
@@ -135,7 +121,83 @@ export function useCollegeFilter() {
       filteredRankedColleges: sorted,
       totalActiveFiltersCount: activeCount,
     };
-  }, [filters, homeCoords]);
+  }, [filters, allRankedColleges]);
+
+  // Derive final display order (applying manual position overrides if any exist for current filtered set)
+  const displayColleges = useMemo(() => {
+    if (!manualOrderIds) return filteredRankedColleges;
+
+    const map = new Map(filteredRankedColleges.map((c) => [c.college.id, c]));
+    const result: RankedCollege[] = [];
+
+    for (const id of manualOrderIds) {
+      const item = map.get(id);
+      if (item) {
+        result.push(item);
+        map.delete(id);
+      }
+    }
+
+    // Append any colleges not covered in manualOrderIds
+    for (const item of map.values()) {
+      result.push(item);
+    }
+
+    return result;
+  }, [filteredRankedColleges, manualOrderIds]);
+
+  // Reorder colleges (drag-to-reorder / Move Up / Move Down)
+  const reorderColleges = useCallback(
+    (sourceIndex: number, destinationIndex: number) => {
+      const currentList = displayColleges;
+      if (
+        sourceIndex < 0 ||
+        sourceIndex >= currentList.length ||
+        destinationIndex < 0 ||
+        destinationIndex >= currentList.length ||
+        sourceIndex === destinationIndex
+      ) {
+        return;
+      }
+
+      const updated = [...currentList];
+      const [moved] = updated.splice(sourceIndex, 1);
+      updated.splice(destinationIndex, 0, moved);
+      setManualOrderIds(updated.map((c) => c.college.id));
+    },
+    [displayColleges]
+  );
+
+  const resetManualOrder = useCallback(() => {
+    setManualOrderIds(null);
+  }, []);
+
+  // Single sort shortcut (100% on one criterion)
+  const applySingleSort = useCallback((criterionId: CriterionId) => {
+    setFilters((prev) => ({
+      ...prev,
+      weights: {
+        beds: 0,
+        distance_from_home: 0,
+        google_rating: 0,
+        google_review_count: 0,
+        fee_category_a: 0,
+        [criterionId]: 100,
+      },
+      activePresetId: null,
+    }));
+  }, []);
+
+  // Active single sort criterion helper (if exactly one criterion has 100% weight)
+  const activeSingleSortCriterion = useMemo<CriterionId | null>(() => {
+    const activeKeys = (Object.keys(filters.weights) as CriterionId[]).filter(
+      (k) => (filters.weights[k] || 0) > 0
+    );
+    if (activeKeys.length === 1 && filters.weights[activeKeys[0]] === 100) {
+      return activeKeys[0];
+    }
+    return null;
+  }, [filters.weights]);
 
   // Helpers to reset specific filters
   const removeType = (type: CollegeType) => {
@@ -177,9 +239,14 @@ export function useCollegeFilter() {
     filters,
     setFilters,
     filteredRankedColleges,
+    displayColleges,
+    isManuallyReordered: manualOrderIds !== null,
+    reorderColleges,
+    resetManualOrder,
+    allRankedCollegesSorted,
     availableCities,
-    shortlistIds,
-    toggleShortlist,
+    applySingleSort,
+    activeSingleSortCriterion,
     totalActiveFiltersCount,
     removeType,
     removeCity,

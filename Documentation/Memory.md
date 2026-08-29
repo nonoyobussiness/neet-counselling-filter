@@ -185,6 +185,160 @@ Each entry should be quick to write and quick to scan — not a full changelog, 
   - None. All color tokens (`paper`, `ink`, `surgical`, `marigold`, `rank-red`, `line`) and typography roles (`Fraunces`, `Inter`, `IBM Plex Mono`) strictly adhere to Design.md.
 - Open UI issues / Next up:
   - Phase 4: Full Shortlist drawer / panel view, the signature "stamp" animation with `prefers-reduced-motion` support, and downloadable PDF export matching the form styling.
+  - No table view was included in this build — a gap surfaced later once Architecture.md §5c/Design.md were extended with a table-view spec (see the [2026-08-29] — Phase 3/4 catch-up scoping entry below).
 
+### [2026-08-29] — Phase 4 — Shortlist Panel, Signature Stamp Animation & PDF Export
+- What changed:
+  - Built signature element `Stamp` in `src/components/Stamp.tsx` and configured `animate-stamp` keyframe animation in `src/index.css` (scale/rotate into place with -10° ink seal slant). Added full `prefers-reduced-motion` support so it degrades to instant appearance for users with motion sensitivity.
+  - Integrated Stamp badge onto `CollegeCard.tsx` when shortlisted with smooth entrance and Marigold border highlighting.
+  - Built `src/components/ShortlistPanel.tsx` rendering the official "running form in progress" document view:
+    - Official header: "KNRUHS · NEET UG CHOICE SELECTION FORM".
+    - Choice order preference numbering (`01`, `02`, `03`...).
+    - Interactive reordering controls (Move Up / Move Down buttons) to let students adjust their exact submission priority.
+    - Sourced data provenance footnote explaining verified vs `~est` beds and KNRUHS brochure verification notes.
+  - Implemented client-side PDF export in `src/utils/pdfExport.ts` using `jspdf` and `html2canvas` (with 2x DPI canvas scaling for crisp typography), generating `NEET_Telangana_MBBS_Choice_List.pdf`.
+  - Added dedicated `@media print` styles in `src/index.css` for instant browser printing.
+  - Added `reorderShortlist` and `clearAllShortlist` methods to `useCollegeFilter.ts` with `localStorage` persistence.
+- Why: Complete Phase 4 requirements per PRD.md §5, Architecture.md §3/§5, and Design.md §26-30.
+- Assumptions made / open issues with PDF rendering/fonts:
+  - Font rendering in `html2canvas` captures Google Fonts (`Fraunces`, `Inter`, `IBM Plex Mono`) cleanly via standard canvas text rendering.
+  - Dual export paths provided: 1-click Download PDF via canvas/jsPDF + Native Browser Print (`window.print()`).
+- Next up: Phase 5 — Polish, responsiveness, and accessibility pass.
+  - Shortlist shipped with manual Move Up/Down reorder but no "add all filtered" bulk action and no lock/unfreeze toggle — a gap surfaced later once Architecture.md §5b/Design.md were extended (see below).
 
+### [2026-08-29] — Phase 4.5 scoping — Tailored the catch-up prompt to the real shipped file structure
+- What changed:
+  - Confirmed against the real Phase 3/Phase 4 entries above that the gap is exactly: no table view (Phase 3: `CollegeCard.tsx`, `FilterControls.tsx`, `MobileBottomSheet.tsx`, `ActiveFilterChips.tsx`, `useCollegeFilter.ts`), and no "add all filtered" bulk action / no lock-unfreeze toggle (Phase 4: `ShortlistPanel.tsx` with Move Up/Down, `Stamp.tsx`, `pdfExport.ts`).
+  - Rewrote Prompts.md's Phase 4.5 prompt to name these exact files instead of generic placeholders — it now tells the build agent what already exists (so it doesn't rebuild the card view, filter rail, ranking engine, single add/remove/stamp, or Move Up/Down from scratch) and exactly where the two additions plug in: a new table component alongside `CollegeCard.tsx`'s render site reusing `useCollegeFilter.ts`'s existing sort logic, and a bulk-append method + `orderLocked` boolean added to `useCollegeFilter.ts` with UI in `ShortlistPanel.tsx`.
+  - Added matching "Shipped as: ..." notes to Phases.md's Phase 3 and Phase 4 sections, and a file-name cross-reference in the Phase 4.5 section, so Phases.md and Prompts.md stay in sync per Rules.md's process rule #1/#2 pattern (docs should always describe what's actually true).
+- Why: user confirmed continuing from Phase 4.5 against their real Memory.md, and asked for the Phase 4.5 prompt to reference the actual components rather than generic placeholders, to make it directly actionable for whichever agent runs it next.
+- Assumptions made / open questions: None new — this is a scoping/documentation pass, no code touched, no new data touched.
+- What's broken or incomplete: Table view, bulk-add, and lock/unfreeze are still not built — this entry only makes the instructions for building them more precise.
+- Next up: run Prompts.md's Phase 4.5 prompt against the real codebase, then continue into Phase 5.
 
+### [2026-08-29] — Phase 4.5 — Table View, Shortlist Bulk-Add & Order Lock/Unfreeze Catch-Up Pass
+- What changed:
+  - **Table View Toggle & Component**:
+    - Created `src/components/CollegeTable.tsx` implementing the dense official ledger/marksheet format with hairline dividers (`border-line`), sticky top header row (`sticky top-0 bg-paper`), and sticky college name column (`sticky left-0 bg-white`) with horizontal scrolling on mobile/tablet.
+    - All numeric and data columns (`beds`, `rating`, `distance`, `fees`, `NIRF rank`, `year established`, `overallScore`, `rankIndex`) are set in mono typography (`font-mono`).
+    - Unverified estimate bed counts carry the exact same `~est` low-confidence badge as `CollegeCard.tsx` per Architecture.md §6b.
+    - Added sortable column headers that directly invoke `applySingleSort` (reusing the exact same normalization/ranking sort engine as `FilterControls.tsx`) and render direction indicators (`▲` for higher is better, `▼` for lower is better).
+    - Integrated View Mode Toggle (`Cards` vs `Table`, defaulting to `Cards`) in `src/App.tsx` meta header bar.
+  - **Shortlist Bulk-Add Action**:
+    - Added `addBulkToShortlist` method to `src/hooks/useCollegeFilter.ts` that appends all currently-visible colleges in on-screen order, skipping existing entries without duplicates.
+    - Added visible "Add All Filtered ({count})" bulk action button prominently in the `src/App.tsx` meta action bar.
+    - Updated `src/components/Stamp.tsx` and `src/components/CollegeCard.tsx` with an `animate` prop keyed to `lastSingleAddedId` so single manual adds trigger the signature keyframe animation while bulk adds and document views render the stamp badge instantly without firing 60+ simultaneous animations.
+  - **Shortlist Order Lock/Unfreeze State**:
+    - Added `orderLocked: boolean` (default `true`) state in `src/hooks/useCollegeFilter.ts` with `localStorage` persistence.
+    - Added visible Lock/Unfreeze toggle button and live tracking warning banner in `src/components/ShortlistPanel.tsx` (calm official styling when locked, attention-grabbing styling when unfrozen).
+    - In unfrozen mode (`orderLocked === false`), `orderedShortlistedColleges` dynamically tracks the live sort/ranking criteria of the browse view.
+    - Manual Move Up / Move Down or clicking the lock toggle snapshots the current live order and locks `orderLocked = true`.
+    - Confirmed `src/utils/pdfExport.ts` reads the rendered `#printable-shortlist-document` directly in its exact active order without any separate sort step.
+  - Updated automated test suite in `scripts/test-engine.js` covering Haversine distance, multi-criteria normalization, unverified beds badges, bulk-add deduplication, and lock/unfreeze ordering logic. Verified full build with `npm run build`.
+- Why:
+  - Complete the Phase 4.5 catch-up pass bringing the codebase in exact alignment with Architecture.md §5b (shortlist ordering/locking), §5c (browse view modes), and Design.md (table view, bulk actions, and stamp transitions).
+- Implementation Observations / Difficulties vs Fresh Build:
+  - **Stamp Animation Decoupling**: Because `Stamp.tsx` previously had the CSS animation baked unconditionally into its component class, bulk-adding 60+ colleges would trigger dozens of simultaneous transform animations. Adding the `animate` prop and tracking `lastSingleAddedId` resolved this cleanly.
+  - **Shortlist Ordering Unfrozen Mapping**: When unfrozen, shortlisted colleges needed to reorder according to the active criteria across all colleges (not just those currently passing hard filters like search or city filters), requiring the hook to derive order from `allRankedCollegesSorted`.
+  - **Reusing Single Sort Logic**: Because single-field sorting in `FilterControls.tsx` was implemented by assigning 100% weight to a signal in `filters.weights`, exposing `applySingleSort` and `activeSingleSortCriterion` allowed `CollegeTable.tsx` to reuse the identical sorting mechanism with zero duplication.
+- What's broken or incomplete:
+  - None. Clean production build and automated tests pass.
+- Next up:
+  - Phase 4.6 — Rework PDF export to compact 4-column key-entry table for counselling staff, then Phase 5.
+
+### [2026-08-29] — Phase 4.6 — PDF Export Redesign to Compact 4-Column Submission Table
+- What changed:
+  - **4-Column Compact Export Table**:
+    - Redesigned the export and print document structure in `src/components/ShortlistPanel.tsx` (`#printable-submission-document`), `src/utils/pdfExport.ts`, and `src/index.css` from mirroring the full-detail on-screen student cards to a compact 4-column table:
+      1. **Priority Order Number** (`01`, `02`, `03`...)
+      2. **College Code** (`college_code`, prominent, mono — primary key-entry field for counselling staff; if `null`, gracefully displays full college name so row remains actionable)
+      3. **College Name** (`college.name` in full)
+      4. **City** (`college.city`)
+    - Omitted student evaluation statistics (`beds`, `rating`, `distance`, `fees`, `NIRF rank`) from the exported table.
+  - **On-Screen Student Workpad vs Submission Document**:
+    - Preserved full stat cards, Move Up/Down reordering controls, delete actions, and lock/unfreeze controls in the on-screen student workpad in `ShortlistPanel.tsx` for evaluation and curation.
+    - Added an on-screen view toggle between "Student Workpad" and "Counselling Sheet Preview" so students can inspect the exact official paper document before exporting.
+  - **Dual Export Path Parity**:
+    - Updated `src/utils/pdfExport.ts` (`exportShortlistToPDF`) to capture `#printable-submission-document` with 2x DPI canvas scaling and multi-page A4 pagination.
+    - Updated `@media print` rules in `src/index.css` so browser print (`window.print()`) outputs the identical 4-column submission table across pages with page-break safety.
+  - **Provenance & Framing**:
+    - Retained the official header ("KNRUHS · NEET UG CHOICE SELECTION FORM", "Telangana MBBS College Shortlist", reference city origin, generation date, summary statistics, signature Stamp seal) and the sourced-data provenance footnote.
+  - Verified ordering still derives 1:1 from the active shortlist array without separate sorting. Added unit tests in `scripts/test-engine.js` and confirmed production build passes with `npm run build`.
+- Why:
+  - Counselling staff keying in choices during state/MCC admissions scan down the printed sheet matching `college_code` against priority order numbers; research/evaluation metrics (beds, ratings, fees, distances) belong on the student's screen rather than the official submission document.
+- Assumptions made / open questions:
+  - For the 7 colleges with `null` `college_code`, the full college name is shown in the code column rather than "N/A" or blank, ensuring staff have an immediate text identifier to type.
+- What's broken or incomplete:
+  - None. Clean production build and automated tests pass.
+- Next up:
+  - Removal of shortlist in favor of direct browse-view export, then Phase 5.
+
+### [2026-08-29] — Pivot: Shortlist Removed — Live Browse View is the Export
+- What changed:
+  - **Shortlist Concept Removed**:
+    - Eliminated the separate "add to shortlist" step and independent priority queue entirely. Filtering, sorting, and multi-criteria weighting in the browse view IS now the sole mechanism for establishing choice order.
+    - Exporting PDF or printing now directly captures whatever colleges are currently visible under active filters in their exact on-screen rank order.
+  - **Codebase Clean-up**:
+    - Deleted `src/components/ShortlistPanel.tsx` and `src/components/Stamp.tsx`.
+    - Removed stamp keyframes and animation classes from `src/index.css`.
+    - Removed shortlist bookmark actions, marigold highlight borders, and stamp badges from `src/components/CollegeCard.tsx` and `src/components/CollegeTable.tsx`.
+    - Cleaned `src/hooks/useCollegeFilter.ts` by removing `shortlistIds`, `orderLocked`, `orderedShortlistedColleges`, `toggleShortlist`, `addBulkToShortlist`, `reorderShortlist`, `clearAllShortlist`, `lastSingleAddedId`, and `localStorage` persistence.
+  - **Default Sort Decision**:
+    - Explicitly configured the default initial state to use the **Balanced Choice preset** (`beds: 35`, `distance_from_home: 30`, `google_rating: 20`, `google_review_count: 15`, `fee_category_a: 0`) with Hyderabad as the reference origin.
+    - When a user first opens the app without touching any filter controls, all 69 colleges have a deterministic, computed match score from `#1` to `#69` with alphabetical tie-breaking on `college.name`, ensuring exported documents have meaningful ordering even before custom tweaks.
+  - **Export Trigger & Submission Table Integration**:
+    - Updated `src/utils/pdfExport.ts` (`exportCollegesToPDF`) and `src/App.tsx` to directly bind the export trigger to the live `filteredRankedColleges` list.
+    - Export triggers ("Export PDF" with college count badge and "Print") placed prominently in the top navigation header, browse meta bar, and mobile floating action bar.
+    - Preserved the compact 4-column key-entry submission format: Priority Order #, College Code (with full name fallback for 7 colleges with null codes), College Name, and City.
+    - Retained official document framing ("KNRUHS · NEET UG CHOICE SELECTION FORM", "Telangana MBBS Priority List", summary counts, date) and the sourced-data provenance footnote.
+  - **Documentation Alignment**:
+    - `Architecture.md`: Removed §5b (shortlist state) and updated §2, §5b (browse view modes & direct PDF export), and §6b cross-references.
+    - `Rules.md`: Removed Rule #18 (shortlist order ownership).
+    - `Phases.md` / `Prompts.md`: Updated Phase 4 to reflect direct live browse PDF export; marked Phase 4.5 and 4.6 as superseded.
+  - Updated automated test suite in `scripts/test-engine.js` and verified clean production build (`npm run build`).
+- Why:
+  - Users filter and weight colleges in the browse view to find their preferred priority order; forcing a redundant second step to "add to shortlist" added friction without changing the intended submission order. Exporting the live browse view directly simplifies the mental model and streamlines choice list generation.
+- What's broken or incomplete:
+  - None. Clean production build and automated tests pass.
+- Next up:
+  - Phase 5 — Polish, responsiveness, and accessibility pass.
+
+### [2026-08-29] — Live Browse Drag-to-Reorder on Card & Table Views
+- What changed:
+  - **In-Memory Drag-to-Reorder on Live List**:
+    - Added direct drag-to-reorder support to the live browse view without reintroducing shortlist state, storage keys, locking flags, or stamp animations.
+    - Updated `src/hooks/useCollegeFilter.ts` with `displayColleges`, `manualOrderIds`, `reorderColleges(sourceIndex, destinationIndex)`, `resetManualOrder()`, and `isManuallyReordered`.
+    - Maintained the multi-criteria / sort-derived array as the base order. When a user drags an item or clicks Move Up / Down, the swap is stored in session memory across the current filtered list.
+    - If the user alters any filter, search query, single sort field, or ranking weight slider, `manualOrderIds` resets to `null`, gracefully falling back to the fresh criteria-derived sort order without complexity.
+  - **Card View Drag & Touch Controls**:
+    - In `src/components/CollegeCard.tsx`, added a drag grip (`GripVertical`), HTML5 drag-and-drop event handlers with visual drag-over feedback, and touch-accessible `ChevronUp` / `ChevronDown` buttons next to the rank badge.
+  - **Table View Drag & Touch Controls**:
+    - In `src/components/CollegeTable.tsx`, added `GripVertical` drag grip, HTML5 row drag-and-drop, and touch-accessible `ChevronUp` / `ChevronDown` buttons in the Order (`#`) column.
+    - Confirmed that row drag-and-drop does not interfere with column-header click sorting (`th` click handlers trigger `onSingleSort`, which resets manual drags and sorts by the selected column).
+  - **PDF and Print Export Parity Verified**:
+    - `src/App.tsx` renders `#printable-submission-document` directly from `displayColleges`.
+    - Both `exportCollegesToPDF` (jsPDF + html2canvas) and native browser print (`window.print()`) output the exact on-screen sequence (including any manual drag overrides) in the 4-column submission table.
+  - Added unit test cases to `scripts/test-engine.js` verifying manual drag swaps, PDF export mapping matching, and automatic reset on filter/weight modifications.
+  - Verified clean production build (`npm run build`).
+- Why:
+  - Allows students to fine-tune specific choice rankings (e.g., placing a preferred hometown college at #1 above an algorithmically higher-scored institution) directly in the active browse view prior to PDF generation.
+- What's broken or incomplete:
+  - None. Clean production build and automated tests pass.
+- Next up:
+  - Phase 5 — Polish, responsiveness, and accessibility pass.
+
+### [2026-08-29] — Table View: Removed Sticky Name Column on Mobile
+- What changed:
+  - **Removed Sticky/Frozen Left Name Column**:
+    - In `src/components/CollegeTable.tsx`, removed `sticky left-0` and horizontal drop-shadow classes from both the table header (`th`) and table data cells (`td`) for the college name column (`Institution & Location`).
+    - The table now scrolls horizontally as a single cohesive block on mobile viewports, allowing natural touch swiping without the left column capturing or blocking horizontal swipe gestures.
+    - Preserved the sticky top header row (`thead` `sticky top-0 bg-paper z-20`) so column headers remain visible while scrolling vertically.
+  - **Design Documentation Updated**:
+    - Updated `Documentation/Design.md` table view layout notes to specify that the entire table scrolls horizontally as one normal block on mobile (no frozen/sticky left name column).
+  - Verified tests in `scripts/test-engine.js` and clean production build with `npm run build`.
+- Why:
+  - On mobile touch devices, the sticky frozen column was capturing touch gestures and preventing users from smoothly scrolling right to view remaining data columns (beds, rating, distance, fees, NIRF, match score).
+- What's broken or incomplete:
+  - None. Clean production build and automated tests pass.
+- Next up:
+  - Phase 5 — Polish, responsiveness, and accessibility pass.

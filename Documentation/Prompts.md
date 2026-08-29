@@ -8,7 +8,8 @@ General instruction to prepend to every session, regardless of phase:
 
 ## Phase 0 — Foundations
 ```
-Read PRD.md, Architecture.md, Design.md, and Rules.md in full.
+Read Memory.md first to see what's already been done and what's in progress — don't assume a
+blank slate. Read PRD.md, Architecture.md, Design.md, and Rules.md in full.
 Set up the project skeleton per Architecture.md's stack section: React, TypeScript, Tailwind,
 Vite. No backend, no database — this is a static-data SPA (Architecture.md §3). Define the
 College TypeScript type exactly matching Architecture.md §4 — don't invent extra fields not
@@ -18,7 +19,8 @@ When done, update Memory.md with what was set up and any deviations from Archite
 
 ## Phase 1 — Data (static CSV, not a pipeline)
 ```
-Read Architecture.md §4-6, §6b and Rules.md §8-10 before touching the data file.
+Read Memory.md first to see what's already been done and what's in progress — don't assume a
+blank slate. Read Architecture.md §4-6, §6b and Rules.md §8-10 before touching the data file.
 Convert colleges_enriched.csv into colleges.json, preserving every field including data_notes,
 college_code, year_established, fee_category_a, fee_management_quota, and fee_nri_quota.
 Do not fill any null field with an estimate or a guess — Architecture.md §6 documents exactly
@@ -40,7 +42,8 @@ expected (not a bug to chase), and flag anything you had to change to make the c
 
 ## Phase 2 — Frontend data loading + ranking
 ```
-Read Architecture.md §5 and Rules.md #8 (never hardcode a fixed ranking) before writing this.
+Read Memory.md first to see what's already been done and what's in progress — don't assume a
+blank slate. Read Architecture.md §5 and Rules.md #8 (never hardcode a fixed ranking) before writing this.
 Load colleges.json once on mount. Compute the weighted ranking score and haversine distance
 entirely client-side from each college's own lat/lng — no backend call, no live geocoding.
 Include basic validation on user-entered filter weights.
@@ -49,11 +52,19 @@ When done, update Memory.md with what's built and anything unresolved.
 
 ## Phase 3 — Browse + filter/sort/rank UI
 ```
-Read Design.md in full before writing any component — use the exact color tokens, type roles, and
+Read Memory.md first to see what's already been done and what's in progress — don't assume a
+blank slate. Read Design.md in full before writing any component — use the exact color tokens, type roles, and
 the hall-ticket-stub card pattern described there. Do not introduce new colors or fonts. Treat the
 mobile bottom-sheet filter pattern as the primary design target, not a shrunk-down desktop rail
 (Design.md) — this app is mainly used one-handed on a phone, and filtering/sorting/ranking is the
 app's primary feature (PRD.md §5), not a secondary panel.
+
+Build the college list with two view modes: the default card view (Design.md's hall-ticket-stub
+pattern) and a table view toggle (Design.md, Architecture.md §5c) — both render the SAME already
+filtered/sorted/ranked array, just differently. Table view uses sortable column headers that call
+the exact same sort logic as the filter rail (don't write a second sort implementation), a sticky
+header row, hairline dividers, and a sticky name column on mobile so the rest can scroll
+horizontally instead of cramming everything into a narrow viewport.
 
 Build the college list view and filter/sort/rank UI per Architecture.md §5 — a generic, extensible
 multi-criteria ranking engine, live client-side, based on user-selected weights, not a fixed order
@@ -62,8 +73,8 @@ and not hardcoded to just two signals. Wire in these criteria as real filter/sor
 - bed count: full 69/69 coverage, but only 3/69 officially sourced (Architecture.md §6/§6b) — ships
   as a full filter, sort, AND weighted-rank criterion (not just card info). Every one of the 66
   unverified-estimate rows must show a visible low-confidence badge everywhere its number appears:
-  browse card, active filter chip, beds-sorted list, and combined weighted-rank results. Never give
-  it the same visual weight as the 3 sourced rows, even mid-calculation.
+  browse card, table cell, active filter chip, beds-sorted list, and combined weighted-rank results.
+  Never give it the same visual weight as the 3 sourced rows, even mid-calculation.
 - fees (`fee_category_a`/`fee_management_quota`/`fee_nri_quota`, 64/69 coverage): a real filter/sort
   criterion with a smaller "verify against the official KNRUHS brochure" caveat nearby, since the
   source is a third-party aggregator, not KNRUHS itself.
@@ -81,28 +92,43 @@ Distance filter uses each college's hardcoded lat/lng, not live geocoding, per A
 When done, update Memory.md with what's built, any Design.md deviations and why, and open UI issues.
 ```
 
-## Phase 4 — Shortlist + PDF export
+## Phase 4 — PDF export directly from live browse view
 ```
-Read Design.md's "signature element" and layout sections again before building this — the shortlist
-panel and the stamp interaction are the one place we spend visual flourish; keep everything else quiet
-per Design.md's restraint note.
-Build shortlist add/remove with the stamp animation (respecting prefers-reduced-motion), the shortlist
-panel UI, and PDF export that visually mirrors the shortlist panel per Design.md.
-When done, update Memory.md with what's built and any open issues with PDF rendering/fonts.
+Read Memory.md first to see what's already been done and what's in progress — don't assume a
+blank slate. The shortlist concept was removed in favor of direct live export: filtering/sorting/ranking
+the browse view IS the sole mechanism for creating a priority order, and export means "generate an
+official PDF of what I am looking at right now."
+
+Wire the PDF export and browser print functionality to read directly from `filteredRankedColleges`
+in its current active on-screen order (with deterministic default ranking when unadjusted):
+- 4-column compact submission table: priority order number (`01`, `02`...), `college_code` (primary
+  mono column; fallback to full college name for colleges without a code), college name, city.
+- Official framing: "KNRUHS · NEET UG CHOICE SELECTION FORM", "Telangana MBBS Priority List",
+  reference origin city, generated timestamp, summary counts (total matching, govt/pvt, beds),
+  and the sourced-data provenance footnote.
+- Export triggers (Download PDF and Print) live prominently in the header and browse meta controls.
+When done, update Memory.md with what's built.
 ```
+
+## Phase 4.5 & 4.6 — Superseded
+Shortlist-specific catch-up and table mirroring steps are superseded since shortlist state and panels were removed in favor of direct browse-view PDF/print export.
 
 ## Phase 5 — Polish & responsiveness
 ```
-Read Design.md's accessibility/quality-floor section. Do a full pass: mobile responsiveness down to
-small viewports, WCAG AA contrast check against the defined palette, visible focus states using the
-surgical token, reduced-motion behavior, and empty/error state copy written in the interface's voice
-(plain, specific, no filler) per the writing guidance implicitly carried from Design.md's tone.
+Read Memory.md first to see what's already been done and what's in progress — don't assume a
+blank slate. Read Design.md's accessibility/quality-floor section. Do a full pass: mobile responsiveness down to
+small viewports — including the table view's horizontal-scroll/sticky-column behavior and the
+shortlist's lock/unfreeze toggle — WCAG AA contrast check against the defined palette, visible focus
+states using the surgical token, reduced-motion behavior (including the batched stamp animation used
+for bulk shortlist adds), and empty/error state copy written in the interface's voice (plain,
+specific, no filler) per the writing guidance implicitly carried from Design.md's tone.
 When done, update Memory.md with what was fixed and anything deferred.
 ```
 
 ## Phase 6 — Test & ship
 ```
-Before deployment, re-read PRD.md §8-9 (success criteria and open questions) and confirm each is
+Read Memory.md first to see what's already been done and what's in progress — don't assume a
+blank slate. Before deployment, re-read PRD.md §8-9 (success criteria and open questions) and confirm each is
 addressed or explicitly deferred. Deploy per the hosting choice in Architecture.md §3.
 When done, update Memory.md with the deployment outcome, any last-minute fixes, and a final note on
 which PRD open questions remain unresolved post-launch.
@@ -110,7 +136,8 @@ which PRD open questions remain unresolved post-launch.
 
 ## Phase 7 — Post-launch / v2 ideas
 ```
-Read PRD.md's non-goals and Phases.md's Phase 7 list before proposing any new feature — confirm it's
+Read Memory.md first to see what's already been done and what's in progress — don't assume a
+blank slate. Read PRD.md's non-goals and Phases.md's Phase 7 list before proposing any new feature — confirm it's
 actually intended as v2 scope, not a v1 gap that should have been caught earlier.
 When done, update Memory.md with what was scoped for v2 and why it wasn't v1.
 ```
