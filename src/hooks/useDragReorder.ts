@@ -9,6 +9,7 @@ interface UseDragReorderOptions {
   minScrollSpeed?: number;
   itemGapPx?: number;
   longPressDelayMs?: number;
+  moveThresholdPx?: number;
 }
 
 export interface DragReorderState {
@@ -43,7 +44,8 @@ export function useDragReorder({
   maxScrollSpeed = 26,
   minScrollSpeed = 4,
   itemGapPx = 0,
-  longPressDelayMs = 500,
+  longPressDelayMs = 220,
+  moveThresholdPx = 14,
 }: UseDragReorderOptions): DragReorderState {
   const [activeDragIndex, setActiveDragIndex] = useState<number | null>(null);
   const [hoverDropIndex, setHoverDropIndex] = useState<number | null>(null);
@@ -54,6 +56,7 @@ export function useDragReorder({
   const isDraggingRef = useRef<boolean>(false);
   const lastPointerYRef = useRef<number>(0);
   const startPointerRef = useRef<{ x: number; y: number } | null>(null);
+  const pendingHoldIndexRef = useRef<number | null>(null);
   const longPressTimerRef = useRef<number | null>(null);
   const scrollSpeedRef = useRef<number>(0);
   const rafIdRef = useRef<number | null>(null);
@@ -209,21 +212,23 @@ export function useDragReorder({
       clearTimeout(longPressTimerRef.current);
       longPressTimerRef.current = null;
     }
+    pendingHoldIndexRef.current = null;
   }, []);
 
-  // Initiate active drag mode
+  // Initiate active drag mode (only after hold confirmed or immediate handle touch)
   const startDrag = useCallback(
     (index: number, clientY: number) => {
+      clearLongPressTimer();
       const targetEl = itemRefs.current[index];
       if (targetEl) {
         const rect = targetEl.getBoundingClientRect();
         draggedItemHeightRef.current = rect.height + itemGapPx;
       }
 
-      // Optional light haptic feedback on mobile
+      // Haptic vibration on supported devices
       if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
         try {
-          navigator.vibrate(15);
+          navigator.vibrate(20);
         } catch {
           // ignore vibrate errors
         }
@@ -238,7 +243,7 @@ export function useDragReorder({
       setHoverDropIndex(index);
       checkEdgeProximity(clientY);
     },
-    [checkEdgeProximity, itemGapPx]
+    [checkEdgeProximity, clearLongPressTimer, itemGapPx]
   );
 
   // Complete or cancel drag
@@ -275,19 +280,19 @@ export function useDragReorder({
     finishDrag(false);
   }, [finishDrag]);
 
-  // Window-level listeners for active drag & touch gestures
+  // Global window listeners for tracking drag and pending hold movement
   useEffect(() => {
-    if (activeDragIndex === null && longPressTimerRef.current === null) return;
-
-    const handlePointerMove = (e: PointerEvent) => {
+    const handleWindowPointerMove = (e: PointerEvent) => {
       lastPointerYRef.current = e.clientY;
 
       if (!isDraggingRef.current) {
-        // If still waiting for long-press and moved > 10px, cancel long-press to allow normal scroll
+        // Pending hold disambiguation: if moved beyond threshold, cancel hold immediately!
         if (startPointerRef.current) {
-          const dx = Math.abs(e.clientX - startPointerRef.current.x);
-          const dy = Math.abs(e.clientY - startPointerRef.current.y);
-          if (dx > 10 || dy > 10) {
+          const dist = Math.hypot(
+            e.clientX - startPointerRef.current.x,
+            e.clientY - startPointerRef.current.y
+          );
+          if (dist > moveThresholdPx) {
             clearLongPressTimer();
             startPointerRef.current = null;
           }
@@ -299,22 +304,26 @@ export function useDragReorder({
       checkEdgeProximity(e.clientY);
     };
 
-    const handleTouchMove = (e: TouchEvent) => {
+    const handleWindowTouchMove = (e: TouchEvent) => {
       if (e.touches && e.touches.length > 0) {
         const touch = e.touches[0];
         lastPointerYRef.current = touch.clientY;
 
         if (isDraggingRef.current) {
-          // CRITICAL FOR MOBILE: Prevent native scroll from stealing or cancelling the drag
+          // Prevent native scroll ONLY after hold has engaged into active drag
           if (e.cancelable) {
             e.preventDefault();
           }
           updateHoverTarget(touch.clientY);
           checkEdgeProximity(touch.clientY);
         } else if (startPointerRef.current) {
-          const dx = Math.abs(touch.clientX - startPointerRef.current.x);
-          const dy = Math.abs(touch.clientY - startPointerRef.current.y);
-          if (dx > 10 || dy > 10) {
+          // Evaluated continuously on every touchmove event during the pending window
+          const dist = Math.hypot(
+            touch.clientX - startPointerRef.current.x,
+            touch.clientY - startPointerRef.current.y
+          );
+          if (dist > moveThresholdPx) {
+            // User is scrolling: cancel the hold timer immediately!
             clearLongPressTimer();
             startPointerRef.current = null;
           }
@@ -322,24 +331,27 @@ export function useDragReorder({
       }
     };
 
-    const handlePointerUp = () => {
+    const handleWindowPointerUp = () => {
       if (isDraggingRef.current) {
         finishDrag(true);
       } else {
         clearLongPressTimer();
+        startPointerRef.current = null;
       }
     };
 
-    const handleTouchEnd = () => {
+    const handleWindowTouchEnd = () => {
       if (isDraggingRef.current) {
         finishDrag(true);
       } else {
         clearLongPressTimer();
+        startPointerRef.current = null;
       }
     };
 
-    const handleCancel = () => {
+    const handleWindowCancel = () => {
       clearLongPressTimer();
+      startPointerRef.current = null;
       if (isDraggingRef.current) {
         finishDrag(false);
       }
@@ -348,33 +360,36 @@ export function useDragReorder({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         clearLongPressTimer();
-        finishDrag(false);
+        startPointerRef.current = null;
+        if (isDraggingRef.current) {
+          finishDrag(false);
+        }
       }
     };
 
-    // Attach listeners with passive: false on touchmove to allow preventing native scroll during drag
-    window.addEventListener('pointermove', handlePointerMove, { passive: true });
-    window.addEventListener('touchmove', handleTouchMove, { passive: false });
-    window.addEventListener('pointerup', handlePointerUp);
-    window.addEventListener('touchend', handleTouchEnd);
-    window.addEventListener('pointercancel', handleCancel);
-    window.addEventListener('touchcancel', handleCancel);
+    // Always keep window listeners active so touch movements are evaluated from the first millisecond
+    window.addEventListener('pointermove', handleWindowPointerMove, { passive: true });
+    window.addEventListener('touchmove', handleWindowTouchMove, { passive: false });
+    window.addEventListener('pointerup', handleWindowPointerUp);
+    window.addEventListener('touchend', handleWindowTouchEnd);
+    window.addEventListener('pointercancel', handleWindowCancel);
+    window.addEventListener('touchcancel', handleWindowCancel);
     window.addEventListener('keydown', handleKeyDown);
 
     return () => {
-      window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('touchmove', handleTouchMove);
-      window.removeEventListener('pointerup', handlePointerUp);
-      window.removeEventListener('touchend', handleTouchEnd);
-      window.removeEventListener('pointercancel', handleCancel);
-      window.removeEventListener('touchcancel', handleCancel);
+      window.removeEventListener('pointermove', handleWindowPointerMove);
+      window.removeEventListener('touchmove', handleWindowTouchMove);
+      window.removeEventListener('pointerup', handleWindowPointerUp);
+      window.removeEventListener('touchend', handleWindowTouchEnd);
+      window.removeEventListener('pointercancel', handleWindowCancel);
+      window.removeEventListener('touchcancel', handleWindowCancel);
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [
-    activeDragIndex,
     checkEdgeProximity,
     clearLongPressTimer,
     finishDrag,
+    moveThresholdPx,
     updateHoverTarget,
   ]);
 
@@ -383,6 +398,7 @@ export function useDragReorder({
     (index: number, e: React.PointerEvent) => {
       if (e.button !== 0) return;
       e.preventDefault();
+      e.stopPropagation();
       startPointerRef.current = { x: e.clientX, y: e.clientY };
       startDrag(index, e.clientY);
     },
@@ -392,6 +408,7 @@ export function useDragReorder({
   const handleImmediateTouchStart = useCallback(
     (index: number, e: React.TouchEvent) => {
       if (e.touches && e.touches.length > 0) {
+        e.stopPropagation();
         const touch = e.touches[0];
         startPointerRef.current = { x: touch.clientX, y: touch.clientY };
         startDrag(index, touch.clientY);
@@ -400,11 +417,10 @@ export function useDragReorder({
     [startDrag]
   );
 
-  // Handle pointer down on row/card body (press-and-hold ~150ms to initiate drag)
+  // Handle pointer down on row/card body (press-and-hold ~220ms to initiate drag)
   const handleBodyPointerDown = useCallback(
     (index: number, e: React.PointerEvent) => {
       if (e.button !== 0) return;
-      // Do not intercept clicks on buttons or interactive controls
       const target = e.target as HTMLElement;
       if (
         target.closest('button') ||
@@ -416,10 +432,14 @@ export function useDragReorder({
       }
 
       startPointerRef.current = { x: e.clientX, y: e.clientY };
+      lastPointerYRef.current = e.clientY;
+      pendingHoldIndexRef.current = index;
       clearLongPressTimer();
 
       longPressTimerRef.current = window.setTimeout(() => {
-        startDrag(index, lastPointerYRef.current || e.clientY);
+        if (pendingHoldIndexRef.current === index && !isDraggingRef.current) {
+          startDrag(index, lastPointerYRef.current || e.clientY);
+        }
       }, longPressDelayMs);
     },
     [clearLongPressTimer, longPressDelayMs, startDrag]
@@ -438,13 +458,17 @@ export function useDragReorder({
         return;
       }
 
+      // DO NOT call preventDefault here — allow browser native scroll to operate 100% cleanly
       const touch = e.touches[0];
       startPointerRef.current = { x: touch.clientX, y: touch.clientY };
       lastPointerYRef.current = touch.clientY;
+      pendingHoldIndexRef.current = index;
       clearLongPressTimer();
 
       longPressTimerRef.current = window.setTimeout(() => {
-        startDrag(index, lastPointerYRef.current || touch.clientY);
+        if (pendingHoldIndexRef.current === index && !isDraggingRef.current) {
+          startDrag(index, lastPointerYRef.current || touch.clientY);
+        }
       }, longPressDelayMs);
     },
     [clearLongPressTimer, longPressDelayMs, startDrag]
@@ -498,6 +522,7 @@ export function useDragReorder({
         userSelect: 'none',
         WebkitUserSelect: 'none',
         WebkitTouchCallout: 'none',
+        // IMPORTANT: touchAction remains 'pan-y' until drag mode actually engages
         touchAction: isBeingDragged ? 'none' : 'pan-y',
       };
 

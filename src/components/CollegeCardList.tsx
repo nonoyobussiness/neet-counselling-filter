@@ -24,8 +24,10 @@ export const CollegeCardList: React.FC<CollegeCardListProps> = ({
     onReorder,
     itemGapPx: 14, // spacing between cards in space-y-3.5
     edgeZonePx: 80, // generous edge threshold zone
-    maxScrollSpeed: 24,
-    minScrollSpeed: 3,
+    maxScrollSpeed: 26,
+    minScrollSpeed: 4,
+    longPressDelayMs: 220,
+    moveThresholdPx: 14,
   });
 
   return (

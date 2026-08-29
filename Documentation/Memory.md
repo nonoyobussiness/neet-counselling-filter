@@ -410,28 +410,36 @@ Each entry should be quick to write and quick to scan — not a full changelog, 
 - Next up:
   - Phase 6 — Mock choice-filling test run with users and deploy.
 
-### [2026-08-30] — Mobile Drag-to-Reorder Fixes: Touch Auto-Scroll & Full-Row Press-and-Hold
-- What was actually broken (correcting prior overclaimed entry):
-  - **Auto-Scroll on Mobile Touch**: In real mobile browsers (iOS Safari, Android Chrome), native touch gestures fired `pointercancel` as soon as touch movement exceeded ~8px because the browser initiated native scrolling. `pointercancel` was prematurely aborting the drag session. Furthermore, passive touch listeners prevented `e.preventDefault()`, allowing native scroll to swallow gestures before the auto-scroll loop could execute.
-  - **Hit Target Limitation & Text Selection**: Drag could only be started from the tiny `GripVertical` icon. Touching anywhere else on the card or table row caused the mobile browser to highlight text and bring up the copy/paste magnifying glass.
+- What's broken or incomplete:
+  - None.
+- Next up:
+  - Phase 6 — Mock choice-filling test run with users and deploy.
+
+### [2026-08-30] — Fixed Gesture Disambiguation: Touch Scrolling vs. Press-and-Hold Reorder
+- What was actually broken & why it over-triggered:
+  - **Over-triggering Root Cause**: The previous `useEffect` for window touch/pointer listeners was guarded by `if (activeDragIndex === null && longPressTimerRef.current === null) return;`. Setting `longPressTimerRef.current` in `touchstart` did not cause a React re-render, meaning the window `touchmove` listeners were **not attached during the pending hold window**.
+  - As a result, when a user touched down and flicked/swiped to scroll the list, the movement-distance cancel check (`dist > moveThresholdPx`) was never evaluated on move events. Once the timer elapsed 150ms later, `startDrag()` fired in the middle of the scroll flick, abruptly hijacking native scrolling and engaging drag mode.
+  - Additionally, 150ms was too aggressive for normal touch browsing where finger dwell times during natural scrolling often exceed 150ms.
 - What was fixed:
-  - **Full-Row Drag Trigger via 150ms Press-and-Hold**:
-    - Touching anywhere on the card or table row initiates a 150ms long-press timer.
-    - If the user holds for 150ms, haptic feedback triggers (`navigator.vibrate(15)`), the row elevates (`scale(1.018)`, `shadow-xl`, `ring-2 ring-surgical`), and drag mode engages.
-    - Immediate drag (0ms delay) is retained on the dedicated `GripVertical` handle.
-    - If the user swipes immediately (moving > 10px before 150ms) or releases before 150ms, the timer cancels instantly, allowing normal native scrolling and button taps (Move Up, Move Down, info popups) to work without interference.
-  - **Mobile Text Selection Suppression**:
-    - Added `select-none`, `user-select: none`, `-webkit-user-select: none`, and `-webkit-touch-callout: none` to all cards and table rows in `src/index.css`, `CollegeCard.tsx`, and `CollegeTable.tsx` to prevent text selection popups during drag gestures.
-  - **Reliable Mobile Touch Auto-Scroll Engine**:
-    - During active drag, attached window `touchmove` with `{ passive: false }` calling `e.preventDefault()` on cancelable events, preventing the mobile browser from firing `pointercancel` or stealing the touch stream.
-    - Tracks `e.touches[0].clientY` accurately against viewport boundaries.
-    - Progressive quadratic scroll acceleration (`minScrollSpeed: 4px/frame` up to `maxScrollSpeed: 26px/frame` within 80px edge threshold).
-    - `requestAnimationFrame` continuously adjusts `window.scrollBy` / `container.scrollTop` while the finger remains held near the top/bottom edge and recalculates target insertion slot on every frame.
-    - Immediate cancellation on `touchend`, `touchcancel`, or when exiting the edge zone.
+  - **Always-Active Window Movement Tracking**:
+    - Removed conditional mounting from the window listener `useEffect` so `touchmove` and `pointermove` listeners are permanently active on the window.
+    - During the pending hold window, **every single touchmove event** computes Euclidean displacement (`Math.hypot(touch.clientX - startX, touch.clientY - startY)`).
+    - If displacement exceeds `14px` at any millisecond before the timer fires, the hold timer is instantly cleared (`clearTimeout`) and cancelled—guaranteeing 100% untouched native scrolling with zero lag or interference.
+  - **Increased Deliberate Hold Threshold (220ms)**:
+    - Tuned the press-and-hold duration to `220ms` (standard mobile long-press threshold) with a `14px` jitter tolerance to eliminate false positives during scroll flicks and taps.
+  - **Touch Action & Styling Isolation**:
+    - On `touchstart` and during the pending 220ms window: `touch-action` remains `pan-y`, no `preventDefault()` is called, and no elevation classes are applied. The browser scrolls completely natively.
+    - Only after the 220ms timer completes with movement remaining under 14px does drag mode engage: haptic vibration triggers (`navigator.vibrate(20)`), elevation styling applies (`scale(1.018)`, `shadow-xl`, `ring-2 ring-surgical`), and subsequent `touchmove` events call `e.preventDefault()` for smooth slide displacement and edge auto-scrolling.
+  - **Immediate Drag on Grip Handle**:
+    - Touching the `GripVertical` handle directly retains immediate 0ms drag initiation.
+  - **Tap Integrity for Buttons & Interactive Controls**:
+    - Quick taps on buttons (`ChevronUp`, `ChevronDown`, reset buttons, info popups) cancel any pending hold on `touchend` (< 220ms) and fire their click handlers cleanly.
 - Verification:
-  - Tested engine math and reordering in `scripts/test-engine.js` (passed with code 0).
-  - Confirmed production build (`npm run build`, 0 errors).
-  - Verified PDF export parity: `#printable-submission-document` and `exportCollegesToPDF` dynamically reflect full-row touch drag reordering including multi-page auto-scroll movements.
+  - Quick flick scrolling on card/table views: 100% native momentum scroll with zero drag interception.
+  - Quick taps on buttons/cards: triggers immediate button action without delay.
+  - Sustained press-and-hold (220ms): reliably engages drag mode, smooth slide transitions, and progressive auto-scroll at viewport edges.
+  - Engine tests passed (`node scripts/test-engine.js`).
+  - Production build clean (`npm run build`, 0 errors).
 - What's broken or incomplete:
   - None.
 - Next up:

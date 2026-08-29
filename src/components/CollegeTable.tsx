@@ -46,7 +46,8 @@ export const CollegeTable: React.FC<CollegeTableProps> = ({
     edgeZonePx: 80,
     maxScrollSpeed: 26,
     minScrollSpeed: 4,
-    longPressDelayMs: 150,
+    longPressDelayMs: 220,
+    moveThresholdPx: 14,
   });
 
   // Format fee for compact table display
