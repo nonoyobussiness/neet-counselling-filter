@@ -16,7 +16,8 @@ These are standing rules for any AI assistant (or yourself) working on this proj
 ## Data integrity rules
 8. Never hardcode a static "ranking" of colleges. Ranking is always computed from stored raw signals + the user's chosen weights (see Architecture.md §5). If you're tempted to paste in a fixed ranked list, stop — store the raw data instead.
 9. Any data pulled from an external source (MCC, NMC, NIRF, Google Places) must be traceable to that source and timestamped (`source_updated_at`). Never fabricate or estimate a data point and store it as if it were sourced.
-10. Flag weak-signal filters (faculty quality, hostel/infra — see Architecture.md §6) in the UI as lower-confidence, rather than presenting them with the same visual weight as hard data like beds or seat count.
+10. Flag weak-signal data in the UI as lower-confidence, rather than presenting it with the same visual weight as verified data — apply this **per row, not just per field**. `beds` itself is a real, full-coverage filter/sort/rank criterion (PRD.md §5), but 66 of its 69 values are an unverified estimate (Architecture.md §6b) and must carry a visible low-confidence marker everywhere they're shown — card, filter chip, sort results, weighted-rank results. A field being usable as a filter doesn't mean every value in it is equally trustworthy.
+17. When adding a new filter/sort/rank criterion (now or later), follow the pattern in Architecture.md §5 — register one normalized signal with an explicit direction ("higher is better" vs. "lower is better") and plug it into the same weighted-scoring mechanism. Don't bolt on a one-off special case per criterion.
 
 ## Code quality rules
 11. TypeScript everywhere (frontend and backend) — no implicit `any` on new code.

@@ -22,22 +22,22 @@ export function App() {
               Official Choice-Filling Companion
             </h2>
             <p className="text-ink/80 text-sm mt-1">
-              Filter MBBS colleges on beds, patient volume, reviews, distance, and real-world signals.
+              Filter and rank Telangana MBBS colleges on ratings, beds, fees, and distance.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-line">
             <div className="border border-dashed border-line p-4">
-              <span className="font-mono text-xs text-surgical block uppercase tracking-wider mb-1">Status</span>
-              <p className="font-medium text-sm">Stack Skeleton Ready</p>
+              <span className="font-mono text-xs text-surgical block uppercase tracking-wider mb-1">Architecture</span>
+              <p className="font-medium text-sm">Static-Data Client-Side SPA</p>
             </div>
             <div className="border border-dashed border-line p-4">
-              <span className="font-mono text-xs text-surgical block uppercase tracking-wider mb-1">Database</span>
-              <p className="font-medium text-sm">Prisma + Postgres (College Model)</p>
+              <span className="font-mono text-xs text-surgical block uppercase tracking-wider mb-1">Stack</span>
+              <p className="font-medium text-sm">React + TypeScript + Tailwind + Vite</p>
             </div>
             <div className="border border-dashed border-line p-4">
               <span className="font-mono text-xs text-marigold block uppercase tracking-wider mb-1">Next Phase</span>
-              <p className="font-medium text-sm">Phase 1: Data Pipeline</p>
+              <p className="font-medium text-sm">Phase 1: colleges.json Data Bundle</p>
             </div>
           </div>
         </div>
