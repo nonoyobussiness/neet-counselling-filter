@@ -331,21 +331,34 @@ export function App() {
               )
             ) : (
               /* Empty State */
-              <div className="bg-white border border-line p-10 text-center space-y-3">
+              <div className="bg-white border border-line p-10 text-center space-y-3 shadow-2xs">
                 <div className="w-10 h-10 bg-paper border border-line rounded-full flex items-center justify-center mx-auto text-ink/40">
                   <Building className="w-5 h-5" />
                 </div>
                 <h3 className="font-display font-semibold text-lg text-ink">
-                  No colleges match your active criteria
+                  {filters.search.trim()
+                    ? `No colleges match "${filters.search}"`
+                    : 'No colleges match your active criteria'}
                 </h3>
                 <p className="text-xs text-ink/70 max-w-md mx-auto font-sans leading-relaxed">
-                  Try relaxing your distance, bed count, or fee filters to see more colleges in the list.
+                  {filters.search.trim()
+                    ? 'Check your search spelling, or clear the search query to see all colleges matching your filters.'
+                    : 'Try relaxing your distance, bed count, or fee constraints to see more colleges in the list.'}
                 </p>
-                <div className="pt-2">
+                <div className="pt-2 flex items-center justify-center gap-2">
+                  {filters.search.trim() && (
+                    <button
+                      type="button"
+                      onClick={() => setFilters((prev) => ({ ...prev, search: '' }))}
+                      className="px-3.5 py-2 bg-surgical text-white text-xs font-mono font-semibold transition hover:bg-surgical/90"
+                    >
+                      Clear Search
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={resetAllFilters}
-                    className="px-4 py-2 bg-paper hover:bg-paper/80 border border-line text-xs font-mono text-ink transition"
+                    className="px-3.5 py-2 bg-paper hover:bg-paper/80 border border-line text-xs font-mono text-ink transition"
                   >
                     Reset All Filters
                   </button>

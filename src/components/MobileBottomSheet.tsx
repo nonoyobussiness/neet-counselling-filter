@@ -16,17 +16,26 @@ export const MobileBottomSheet: React.FC<MobileBottomSheetProps> = ({
   matchedCount,
   children,
 }) => {
-  // Prevent body scroll when open
+  // Prevent body scroll when open and handle Escape key
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'unset';
     }
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
     return () => {
       document.body.style.overflow = 'unset';
+      window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isOpen]);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -44,9 +53,9 @@ export const MobileBottomSheet: React.FC<MobileBottomSheetProps> = ({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="relative bg-paper w-full max-h-[88vh] flex flex-col border-t-2 border-surgical shadow-2xl animate-in slide-in-from-bottom duration-200"
+        className="relative bg-paper w-full max-h-[88vh] flex flex-col border-t-2 border-surgical shadow-2xl animate-in slide-in-from-bottom duration-200 motion-reduce:animate-none"
       >
-        {/* Drag handle */}
+        {/* Drag handle visual */}
         <div className="w-12 h-1 bg-line mx-auto mt-2.5 mb-1 rounded-full" />
 
         {/* Sheet Header */}
@@ -58,7 +67,7 @@ export const MobileBottomSheet: React.FC<MobileBottomSheetProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 text-ink/70 hover:text-ink bg-white border border-line"
+            className="p-1.5 text-ink/70 hover:text-ink bg-white border border-line focus-visible:outline-2 focus-visible:outline-surgical focus-visible:outline-offset-2"
             aria-label="Close filters"
           >
             <X className="w-4 h-4" />
@@ -75,7 +84,7 @@ export const MobileBottomSheet: React.FC<MobileBottomSheetProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="w-full py-3 bg-surgical text-white font-mono font-semibold text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-xs active:bg-surgical/90"
+            className="w-full py-3 bg-surgical hover:bg-surgical/90 text-white font-mono font-semibold text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-xs active:bg-surgical/95 focus-visible:outline-2 focus-visible:outline-surgical focus-visible:outline-offset-2"
           >
             <Check className="w-4 h-4" />
             Apply & View ({matchedCount} Colleges)

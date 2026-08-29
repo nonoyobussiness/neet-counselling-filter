@@ -342,3 +342,32 @@ Each entry should be quick to write and quick to scan — not a full changelog, 
   - None. Clean production build and automated tests pass.
 - Next up:
   - Phase 5 — Polish, responsiveness, and accessibility pass.
+
+### [2026-08-29] — Phase 5: Polish, Responsiveness, Accessibility & Deployment Readiness
+- What changed:
+  - **Mobile Responsiveness & Touch Interaction**:
+    - Tested and verified smooth layout and viewport scaling across 320px+ viewports.
+    - Verified table view horizontal scrolling as a single unblocked container with sticky column header support.
+    - Verified touch drag-and-drop and `ChevronUp` / `ChevronDown` quick-swap buttons on both Card and Table views.
+  - **Accessibility & WCAG AA Contrast**:
+    - Confirmed all color pairs in `Design.md` (`paper`, `ink`, `surgical`, `rank-red`, `marigold`, `line`) satisfy WCAG AA contrast (≥4.5:1 for normal text, ≥3.0:1 for graphical elements / large text).
+    - Verified persistent 2px `surgical` focus rings (`focus-visible:outline-2 focus-visible:outline-surgical focus-visible:outline-offset-2`) across all interactive inputs, buttons, sliders, and checkboxes.
+    - Enhanced `MobileBottomSheet.tsx` with `Escape` key dismissal and body scroll locking.
+    - Added `@media (prefers-reduced-motion: reduce)` rules in `src/index.css` and Tailwind classes to cleanly disable animations and transitions for users preferring reduced motion.
+  - **Empty & Edge State Handling**:
+    - Refined empty state copy in `src/App.tsx`: distinguishes between zero results from text search queries (with one-click "Clear Search") vs. zero results from restrictive filter constraints (with "Reset All Filters").
+    - Verified fallback for the 7 Telangana colleges with `null` `college_code`: displays full college name in code column for both on-screen table and exported PDF submission table without showing "N/A" or blank cells.
+  - **PRD.md §8–9 Alignment & Known v1 Gap Deferrals**:
+    - Success criteria (§8) met: Students can filter, rank, and download an official priority choice form in under 5 minutes; PDF export directly mirrors the active on-screen order.
+    - Open questions (§9) confirmed:
+      - *Data Refresh*: Single-season static bundle for 2026–27 counselling window (deferred real-time scraping).
+      - *Faculty Quality / OPD volume*: Omitted for v1 due to lack of public per-college disclosures; replaced with verified bed counts, Google rating volume, and fee structure.
+      - *Shortlist Queue*: Formally eliminated in favor of direct live browse export.
+  - **Production Build & Verification**:
+    - Ran `node scripts/test-engine.js` (Haversine math, Balanced ranking, manual drag-and-drop, export mapping: 100% passing).
+    - Ran `npm run build` (`tsc && vite build`): cleanly built production bundle with 0 errors.
+    - Confirmed ready for static deployment on Vercel/Netlify per Architecture.md §3.
+- What's broken or incomplete:
+  - None. Production build is 100% clean and fully functional.
+- Next up:
+  - Phase 6 — Mock choice-filling test run with users and deploy.
