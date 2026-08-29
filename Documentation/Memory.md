@@ -164,4 +164,27 @@ Each entry should be quick to write and quick to scan — not a full changelog, 
 - What's broken or incomplete: Shortlist stamp state and PDF export (Phases 4-5).
 - Next up: Phase 3 / Phase 4 — Detailed filter rail, hall-ticket stub cards, shortlist drawer, and PDF export.
 
+### [2026-08-29] — Phase 3 — Core Frontend: Mobile-First Filter/Sort/Rank & Hall-Ticket Cards
+- What changed:
+  - Built `src/components/CollegeCard.tsx` following Design.md's hall-ticket stub pattern:
+    - Perforated left edge with status indicators (surgical / marigold when shortlisted).
+    - College name set in `font-display` (Fraunces), college code in `font-mono` (omitted gracefully if null).
+    - Data grid in `font-mono` (`beds`, `rating`, `distance`, `fees`, `NIRF rank`, `year established`).
+    - Visible `~est` low-confidence badge on the 66 unverified estimated bed counts, distinguishing them from Osmania, Kakatiya, and Gandhi's verified figures.
+  - Built `src/components/FilterControls.tsx` and `src/components/MobileBottomSheet.tsx` treating mobile bottom-sheet as the primary design target:
+    - Quick ranking strategy presets (Balanced, Closest to Home, Hospital Beds, Top Reputation, Budget Friendly).
+    - 1-click single-field sort shortcuts (100% weight).
+    - Sliders for multi-criteria weights.
+    - Categorical filters for College Type (Govt / Private / Deemed) and District / City multi-select.
+    - Range sliders for Minimum Beds, Max Distance (km), Min Rating (★), and Max Govt Fee.
+  - Built `src/components/ActiveFilterChips.tsx` rendering active filters and active weights as dismissible form field tags.
+  - Built `src/hooks/useCollegeFilter.ts` managing client-side filtering, Haversine distances, multi-criteria ranking, and shortlist state with `localStorage` persistence.
+  - Assembled `src/App.tsx` with header, search bar, active filter tags, meta summary bar, empty states, and floating mobile trigger button.
+- Why: Deliver Phase 3 core browsing, filtering, and multi-criteria ranking UI per PRD.md §5, Architecture.md §5, and Design.md.
+- Deviations from Design.md:
+  - None. All color tokens (`paper`, `ink`, `surgical`, `marigold`, `rank-red`, `line`) and typography roles (`Fraunces`, `Inter`, `IBM Plex Mono`) strictly adhere to Design.md.
+- Open UI issues / Next up:
+  - Phase 4: Full Shortlist drawer / panel view, the signature "stamp" animation with `prefers-reduced-motion` support, and downloadable PDF export matching the form styling.
+
+
 

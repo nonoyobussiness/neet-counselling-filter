@@ -15,7 +15,8 @@
 
 ## Phase 2 — Frontend data loading
 - Load `colleges.json` once on page mount.
-- Compute the live ranking score and haversine distance entirely in the browser (Architecture.md §5) — no backend, no `/rank` endpoint.
+- Compute the li
+ve ranking score and haversine distance entirely in the browser (Architecture.md §5) — no backend, no `/rank` endpoint.
 - Basic validation on the user's filter/weight inputs.
 
 ## Phase 3 — Core frontend: browse + filter/sort/rank
