@@ -43,7 +43,7 @@ export function useDragReorder({
   maxScrollSpeed = 26,
   minScrollSpeed = 4,
   itemGapPx = 0,
-  longPressDelayMs = 150,
+  longPressDelayMs = 500,
 }: UseDragReorderOptions): DragReorderState {
   const [activeDragIndex, setActiveDragIndex] = useState<number | null>(null);
   const [hoverDropIndex, setHoverDropIndex] = useState<number | null>(null);
