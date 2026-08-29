@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { RankedCollege } from '../utils/ranking';
 import {
   MapPin,
@@ -20,6 +20,25 @@ interface CollegeCardProps {
   homeCity: string;
   totalCount: number;
   onReorder: (sourceIndex: number, destinationIndex: number) => void;
+  dragItemProps?: {
+    ref: (el: HTMLElement | null) => void;
+    style: React.CSSProperties;
+    className: string;
+    onPointerDown: (e: React.PointerEvent) => void;
+    onTouchStart: (e: React.TouchEvent) => void;
+  };
+  dragHandleProps?: {
+    onPointerDown: (e: React.PointerEvent) => void;
+    onTouchStart: (e: React.TouchEvent) => void;
+    style: React.CSSProperties;
+    title: string;
+    'aria-grabbed': boolean;
+    role: string;
+    tabIndex: number;
+    onKeyDown: (e: React.KeyboardEvent) => void;
+  };
+  isBeingDragged?: boolean;
+  isHoverTarget?: boolean;
   showScoreBreakdown?: boolean;
 }
 
@@ -29,9 +48,12 @@ export const CollegeCard: React.FC<CollegeCardProps> = ({
   homeCity,
   totalCount,
   onReorder,
+  dragItemProps,
+  dragHandleProps,
+  isBeingDragged,
+  isHoverTarget,
 }) => {
   const { college, distance_from_home, overallScore, isEstimatedBeds } = rankedItem;
-  const [isDragOver, setIsDragOver] = useState(false);
 
   const currentIndex = rankIndex - 1;
   const isFirst = currentIndex === 0;
@@ -50,41 +72,19 @@ export const CollegeCard: React.FC<CollegeCardProps> = ({
   const isGovt = college.type === 'government';
   const isDeemed = college.type === 'deemed';
 
-  const handleDragStart = (e: React.DragEvent) => {
-    e.dataTransfer.setData('text/plain', String(currentIndex));
-    e.dataTransfer.effectAllowed = 'move';
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    if (!isDragOver) setIsDragOver(true);
-  };
-
-  const handleDragLeave = () => {
-    setIsDragOver(false);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(false);
-    const sourceIndexStr = e.dataTransfer.getData('text/plain');
-    const sourceIndex = parseInt(sourceIndexStr, 10);
-    if (!isNaN(sourceIndex) && sourceIndex !== currentIndex) {
-      onReorder(sourceIndex, currentIndex);
-    }
-  };
-
   return (
     <article
+      ref={dragItemProps?.ref}
+      style={dragItemProps?.style}
+      onPointerDown={dragItemProps?.onPointerDown}
+      onTouchStart={dragItemProps?.onTouchStart}
       aria-label={`${college.name} - Match rank #${rankIndex}`}
-      draggable
-      onDragStart={handleDragStart}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
-      className={`relative bg-white border transition-all duration-150 shadow-2xs ${
-        isDragOver ? 'border-surgical border-2 bg-surgical/5 scale-[1.01]' : 'border-line hover:border-surgical/80'
+      className={`relative bg-white border transition-colors duration-150 shadow-2xs select-none ${
+        dragItemProps?.className || 'border-line hover:border-surgical/80'
+      } ${
+        isHoverTarget ? 'border-surgical border-2 bg-surgical/5' : ''
+      } ${
+        isBeingDragged ? 'opacity-90 shadow-xl ring-2 ring-surgical z-30' : ''
       }`}
     >
       {/* Hall-ticket stub indicator on left edge */}
@@ -95,11 +95,12 @@ export const CollegeCard: React.FC<CollegeCardProps> = ({
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-2 flex-wrap">
             {/* Rank badge + Reorder Drag Handle & Controls */}
-            <div className="flex items-center gap-1 bg-paper border border-line p-0.5">
-              {/* Drag Grip Handle */}
+            <div className="flex items-center gap-1 bg-paper border border-line p-0.5" data-no-drag>
+              {/* Touch & Mouse Drag Grip Handle (0ms immediate drag) */}
               <div
-                className="cursor-grab active:cursor-grabbing p-0.5 text-ink/40 hover:text-ink"
-                title="Drag to reorder position in list"
+                {...dragHandleProps}
+                className="p-1 text-ink/50 hover:text-ink cursor-grab active:cursor-grabbing focus-visible:outline-2 focus-visible:outline-surgical rounded-xs"
+                title="Drag to reorder position (or press-and-hold anywhere on card)"
               >
                 <GripVertical className="w-3.5 h-3.5" />
               </div>
@@ -113,9 +114,15 @@ export const CollegeCard: React.FC<CollegeCardProps> = ({
               <div className="flex items-center gap-0.5 border-l border-line/60 pl-0.5">
                 <button
                   type="button"
-                  onClick={() => onReorder(currentIndex, currentIndex - 1)}
+                  data-no-drag
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onReorder(currentIndex, currentIndex - 1);
+                  }}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onTouchStart={(e) => e.stopPropagation()}
                   disabled={isFirst}
-                  className="p-1 hover:bg-white text-ink/60 hover:text-ink disabled:opacity-20 disabled:hover:bg-transparent"
+                  className="p-1 hover:bg-white text-ink/60 hover:text-ink disabled:opacity-20 disabled:hover:bg-transparent focus-visible:outline-2 focus-visible:outline-surgical"
                   title="Move college up in priority order"
                   aria-label={`Move ${college.name} up`}
                 >
@@ -123,9 +130,15 @@ export const CollegeCard: React.FC<CollegeCardProps> = ({
                 </button>
                 <button
                   type="button"
-                  onClick={() => onReorder(currentIndex, currentIndex + 1)}
+                  data-no-drag
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onReorder(currentIndex, currentIndex + 1);
+                  }}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onTouchStart={(e) => e.stopPropagation()}
                   disabled={isLast}
-                  className="p-1 hover:bg-white text-ink/60 hover:text-ink disabled:opacity-20 disabled:hover:bg-transparent"
+                  className="p-1 hover:bg-white text-ink/60 hover:text-ink disabled:opacity-20 disabled:hover:bg-transparent focus-visible:outline-2 focus-visible:outline-surgical"
                   title="Move college down in priority order"
                   aria-label={`Move ${college.name} down`}
                 >
@@ -214,9 +227,9 @@ export const CollegeCard: React.FC<CollegeCardProps> = ({
               ) : college.beds !== null ? (
                 <span
                   title="Officially verified bed count (Architecture.md §6)"
-                  className="text-[10px] font-normal text-surgical flex items-center"
+                  className="text-surgical flex items-center"
                 >
-                  <ShieldCheck className="w-2.5 h-2.5 ml-0.5" />
+                  <ShieldCheck className="w-3 h-3 ml-0.5 inline" />
                 </span>
               ) : null}
             </div>

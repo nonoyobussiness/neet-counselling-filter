@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useCollegeFilter } from './hooks/useCollegeFilter';
-import { CollegeCard } from './components/CollegeCard';
+import { CollegeCardList } from './components/CollegeCardList';
 import { CollegeTable } from './components/CollegeTable';
 import { FilterControls } from './components/FilterControls';
 import { ActiveFilterChips } from './components/ActiveFilterChips';
@@ -308,18 +308,11 @@ export function App() {
             {/* College Card Stack or Dense Table View with Drag & Reorder */}
             {displayColleges.length > 0 ? (
               viewMode === 'card' ? (
-                <div className="space-y-3.5">
-                  {displayColleges.map((item, index) => (
-                    <CollegeCard
-                      key={item.college.id}
-                      rankedItem={item}
-                      rankIndex={index + 1}
-                      homeCity={filters.homeCity}
-                      totalCount={displayColleges.length}
-                      onReorder={reorderColleges}
-                    />
-                  ))}
-                </div>
+                <CollegeCardList
+                  colleges={displayColleges}
+                  homeCity={filters.homeCity}
+                  onReorder={reorderColleges}
+                />
               ) : (
                 <CollegeTable
                   colleges={displayColleges}

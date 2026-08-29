@@ -386,3 +386,53 @@ Each entry should be quick to write and quick to scan — not a full changelog, 
   - None.
 - Next up:
   - Phase 6 — Mock choice-filling test run with users and deploy.
+
+### [2026-08-30] — Drag-to-Reorder: Auto-Scroll During Drag & Smooth Slide Displacement Transitions
+- What changed:
+  - **Auto-Scroll During Drag (`src/hooks/useDragReorder.ts`)**:
+    - Added edge proximity threshold detection (~75px from top and bottom boundaries of viewport / scrollable table container).
+    - Implemented progressive quadratic scroll acceleration (`minScrollSpeed: 3px/frame` at boundary edge up to `maxScrollSpeed: 24px/frame` at boundary limit) that scales smoothly with pointer distance.
+    - Continuous auto-scrolling via `requestAnimationFrame` while the dragged item remains held near the edge, stopping immediately when the pointer moves out of the threshold zone or when the drag finishes/cancels.
+    - Dynamically recalculates the hovered slot and displacement animations on each frame as the list scrolls beneath the stationary pointer.
+    - Fully works across mobile touch devices (`touch-action: none` on drag handles) and desktop pointer dragging.
+  - **Smooth Slide Displacement Animations**:
+    - Displaced rows and cards smoothly animate (`transform 180ms cubic-bezier(0.2, 0, 0, 1)`) out of the way into their new positions as the dragged item moves past them (dragging down causes passed rows to slide up; dragging up causes passed rows to slide down).
+    - Snappy 180ms utility animation that does not conflict with simultaneous auto-scrolling.
+    - Dragged item is elevated with `z-30`, `scale(1.015)`, `shadow-lg`, and `ring-2 ring-surgical`.
+    - Full `prefers-reduced-motion` compliance: disables transforms/transitions for users requesting reduced motion, falling back to instant drop-target highlights.
+  - **Component & View Integration**:
+    - Integrated with `src/components/CollegeCardList.tsx` (with 14px gap compensation) and `src/components/CollegeTable.tsx` (row-level transforms with sticky header compatibility).
+  - **Confirmed PDF & Print Export Parity**:
+    - Verified that `#printable-submission-document` and PDF export via `exportCollegesToPDF` dynamically consume `displayColleges`, preserving the exact priority sequence after any manual reorder—including long-distance reorders enabled by auto-scrolling.
+    - Added automated unit test in `scripts/test-engine.js` verifying long drag swaps (e.g. index 45 -> index 2) and matching 4-column export output.
+- What's broken or incomplete:
+  - None. Clean build with 0 errors.
+- Next up:
+  - Phase 6 — Mock choice-filling test run with users and deploy.
+
+### [2026-08-30] — Mobile Drag-to-Reorder Fixes: Touch Auto-Scroll & Full-Row Press-and-Hold
+- What was actually broken (correcting prior overclaimed entry):
+  - **Auto-Scroll on Mobile Touch**: In real mobile browsers (iOS Safari, Android Chrome), native touch gestures fired `pointercancel` as soon as touch movement exceeded ~8px because the browser initiated native scrolling. `pointercancel` was prematurely aborting the drag session. Furthermore, passive touch listeners prevented `e.preventDefault()`, allowing native scroll to swallow gestures before the auto-scroll loop could execute.
+  - **Hit Target Limitation & Text Selection**: Drag could only be started from the tiny `GripVertical` icon. Touching anywhere else on the card or table row caused the mobile browser to highlight text and bring up the copy/paste magnifying glass.
+- What was fixed:
+  - **Full-Row Drag Trigger via 150ms Press-and-Hold**:
+    - Touching anywhere on the card or table row initiates a 150ms long-press timer.
+    - If the user holds for 150ms, haptic feedback triggers (`navigator.vibrate(15)`), the row elevates (`scale(1.018)`, `shadow-xl`, `ring-2 ring-surgical`), and drag mode engages.
+    - Immediate drag (0ms delay) is retained on the dedicated `GripVertical` handle.
+    - If the user swipes immediately (moving > 10px before 150ms) or releases before 150ms, the timer cancels instantly, allowing normal native scrolling and button taps (Move Up, Move Down, info popups) to work without interference.
+  - **Mobile Text Selection Suppression**:
+    - Added `select-none`, `user-select: none`, `-webkit-user-select: none`, and `-webkit-touch-callout: none` to all cards and table rows in `src/index.css`, `CollegeCard.tsx`, and `CollegeTable.tsx` to prevent text selection popups during drag gestures.
+  - **Reliable Mobile Touch Auto-Scroll Engine**:
+    - During active drag, attached window `touchmove` with `{ passive: false }` calling `e.preventDefault()` on cancelable events, preventing the mobile browser from firing `pointercancel` or stealing the touch stream.
+    - Tracks `e.touches[0].clientY` accurately against viewport boundaries.
+    - Progressive quadratic scroll acceleration (`minScrollSpeed: 4px/frame` up to `maxScrollSpeed: 26px/frame` within 80px edge threshold).
+    - `requestAnimationFrame` continuously adjusts `window.scrollBy` / `container.scrollTop` while the finger remains held near the top/bottom edge and recalculates target insertion slot on every frame.
+    - Immediate cancellation on `touchend`, `touchcancel`, or when exiting the edge zone.
+- Verification:
+  - Tested engine math and reordering in `scripts/test-engine.js` (passed with code 0).
+  - Confirmed production build (`npm run build`, 0 errors).
+  - Verified PDF export parity: `#printable-submission-document` and `exportCollegesToPDF` dynamically reflect full-row touch drag reordering including multi-page auto-scroll movements.
+- What's broken or incomplete:
+  - None.
+- Next up:
+  - Phase 6 — Mock choice-filling test run with users and deploy.

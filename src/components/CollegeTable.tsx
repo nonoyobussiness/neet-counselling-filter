@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useRef } from 'react';
 import { RankedCollege, CriterionId } from '../utils/ranking';
+import { useDragReorder } from '../hooks/useDragReorder';
 import {
   MapPin,
   Bed,
@@ -30,7 +31,23 @@ export const CollegeTable: React.FC<CollegeTableProps> = ({
   activeSingleSortCriterion,
   onReorder,
 }) => {
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+
+  const {
+    getItemProps,
+    getHandleProps,
+    activeDragIndex,
+    hoverDropIndex,
+  } = useDragReorder({
+    itemCount: colleges.length,
+    onReorder,
+    scrollContainerRef: tableContainerRef,
+    itemGapPx: 0,
+    edgeZonePx: 80,
+    maxScrollSpeed: 26,
+    minScrollSpeed: 4,
+    longPressDelayMs: 150,
+  });
 
   // Format fee for compact table display
   const formatFee = (amount: number | null) => {
@@ -43,15 +60,24 @@ export const CollegeTable: React.FC<CollegeTableProps> = ({
   };
 
   // Helper to render sort indicator for a sortable column
-  const renderSortIndicator = (criterionId: CriterionId, direction: 'higher_is_better' | 'lower_is_better') => {
+  const renderSortIndicator = (
+    criterionId: CriterionId,
+    direction: 'higher_is_better' | 'lower_is_better'
+  ) => {
     const isActive = activeSingleSortCriterion === criterionId;
     if (isActive) {
       return direction === 'higher_is_better' ? (
-        <span className="inline-flex items-center text-surgical font-bold ml-1 text-xs" title="Sorted highest to lowest">
+        <span
+          className="inline-flex items-center text-surgical font-bold ml-1 text-xs"
+          title="Sorted highest to lowest"
+        >
           ▲
         </span>
       ) : (
-        <span className="inline-flex items-center text-surgical font-bold ml-1 text-xs" title="Sorted lowest to highest (best)">
+        <span
+          className="inline-flex items-center text-surgical font-bold ml-1 text-xs"
+          title="Sorted lowest to highest (best)"
+        >
           ▼
         </span>
       );
@@ -62,10 +88,13 @@ export const CollegeTable: React.FC<CollegeTableProps> = ({
   };
 
   return (
-    <div className="bg-white border border-line shadow-2xs overflow-hidden">
+    <div
+      ref={tableContainerRef}
+      className="bg-white border border-line shadow-2xs overflow-hidden"
+    >
       {/* Scroll Container */}
       <div className="overflow-x-auto max-w-full">
-        <table className="w-full text-left border-collapse text-xs font-sans">
+        <table className="w-full text-left border-collapse text-xs font-sans select-none">
           {/* Table Header: Sticky Top with Hairline Dividers */}
           <thead className="sticky top-0 bg-paper z-20 border-b-2 border-line text-[11px] font-mono uppercase tracking-wider text-ink select-none">
             <tr>
@@ -174,7 +203,7 @@ export const CollegeTable: React.FC<CollegeTableProps> = ({
             </tr>
           </thead>
 
-          {/* Table Body */}
+          {/* Table Body with Smooth Drag Reordering */}
           <tbody className="divide-y divide-line font-mono">
             {colleges.map((item, index) => {
               const { college, distance_from_home, overallScore, isEstimatedBeds } = item;
@@ -183,46 +212,33 @@ export const CollegeTable: React.FC<CollegeTableProps> = ({
               const isLast = index === colleges.length - 1;
               const isGovt = college.type === 'government';
               const isDeemed = college.type === 'deemed';
-              const isDragTarget = dragOverIndex === index;
+
+              const itemProps = getItemProps(index);
+              const handleProps = getHandleProps(index);
+              const isBeingDragged = activeDragIndex === index;
+              const isHoverTarget = hoverDropIndex === index && !isBeingDragged;
 
               return (
                 <tr
                   key={college.id}
-                  draggable
-                  onDragStart={(e) => {
-                    e.dataTransfer.setData('text/plain', String(index));
-                    e.dataTransfer.effectAllowed = 'move';
-                  }}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    e.dataTransfer.dropEffect = 'move';
-                    if (dragOverIndex !== index) setDragOverIndex(index);
-                  }}
-                  onDragLeave={() => {
-                    if (dragOverIndex === index) setDragOverIndex(null);
-                  }}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    setDragOverIndex(null);
-                    const sourceIndexStr = e.dataTransfer.getData('text/plain');
-                    const sourceIndex = parseInt(sourceIndexStr, 10);
-                    if (!isNaN(sourceIndex) && sourceIndex !== index) {
-                      onReorder(sourceIndex, index);
-                    }
-                  }}
-                  className={`group transition-colors ${
-                    isDragTarget ? 'bg-surgical/15 border-t-2 border-surgical' : 'hover:bg-paper/50'
+                  ref={itemProps.ref}
+                  style={itemProps.style}
+                  onPointerDown={itemProps.onPointerDown}
+                  onTouchStart={itemProps.onTouchStart}
+                  className={`group transition-colors select-none ${itemProps.className} ${
+                    isHoverTarget ? 'bg-surgical/10 border-t-2 border-surgical' : 'hover:bg-paper/50'
                   }`}
                 >
-                  {/* Rank Column with Drag Grip & Up/Down Arrows */}
+                  {/* Rank Column with Touch & Mouse Drag Grip & Up/Down Arrows */}
                   <td className="py-2 px-1 border-r border-line text-center text-xs font-bold text-rank-red bg-rank-red/5">
-                    <div className="flex items-center justify-center gap-0.5">
-                      {/* Drag Grip */}
+                    <div className="flex items-center justify-center gap-0.5" data-no-drag>
+                      {/* Touch & Mouse Drag Grip Handle (0ms immediate drag) */}
                       <span
-                        className="cursor-grab active:cursor-grabbing text-ink/40 hover:text-ink p-0.5"
-                        title="Drag row to reorder priority position"
+                        {...handleProps}
+                        className="p-1 text-ink/50 hover:text-ink cursor-grab active:cursor-grabbing focus-visible:outline-2 focus-visible:outline-surgical rounded-xs"
+                        title="Drag to reorder position (or press-and-hold anywhere on row)"
                       >
-                        <GripVertical className="w-3 h-3" />
+                        <GripVertical className="w-3.5 h-3.5" />
                       </span>
 
                       {/* Rank Number */}
@@ -231,12 +247,18 @@ export const CollegeTable: React.FC<CollegeTableProps> = ({
                       </span>
 
                       {/* Touch / Click Move Buttons */}
-                      <div className="flex flex-col items-center">
+                      <div className="flex flex-col items-center" data-no-drag>
                         <button
                           type="button"
-                          onClick={() => onReorder(index, index - 1)}
+                          data-no-drag
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onReorder(index, index - 1);
+                          }}
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onTouchStart={(e) => e.stopPropagation()}
                           disabled={isFirst}
-                          className="p-0.5 hover:bg-white text-ink/60 hover:text-ink disabled:opacity-20 disabled:hover:bg-transparent"
+                          className="p-0.5 hover:bg-white text-ink/60 hover:text-ink disabled:opacity-20 disabled:hover:bg-transparent focus-visible:outline-2 focus-visible:outline-surgical"
                           title="Move up"
                           aria-label={`Move ${college.name} up`}
                         >
@@ -244,9 +266,15 @@ export const CollegeTable: React.FC<CollegeTableProps> = ({
                         </button>
                         <button
                           type="button"
-                          onClick={() => onReorder(index, index + 1)}
+                          data-no-drag
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onReorder(index, index + 1);
+                          }}
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onTouchStart={(e) => e.stopPropagation()}
                           disabled={isLast}
-                          className="p-0.5 hover:bg-white text-ink/60 hover:text-ink disabled:opacity-20 disabled:hover:bg-transparent"
+                          className="p-0.5 hover:bg-white text-ink/60 hover:text-ink disabled:opacity-20 disabled:hover:bg-transparent focus-visible:outline-2 focus-visible:outline-surgical"
                           title="Move down"
                           aria-label={`Move ${college.name} down`}
                         >
@@ -291,7 +319,7 @@ export const CollegeTable: React.FC<CollegeTableProps> = ({
                           {college.city}
                         </span>
                         {college.data_notes && (
-                          <span title={college.data_notes} className="cursor-help">
+                          <span title={college.data_notes} className="cursor-help" data-no-drag>
                             <AlertCircle className="w-2.5 h-2.5 text-ink/40" />
                           </span>
                         )}
@@ -313,6 +341,7 @@ export const CollegeTable: React.FC<CollegeTableProps> = ({
                       <span
                         title="Bed count from secondary report (unverified estimate). Sourced officially for only 3 colleges."
                         className="text-[10px] font-semibold text-marigold bg-marigold/15 border border-marigold/40 px-1 py-0.2 ml-1 cursor-help"
+                        data-no-drag
                       >
                         ~est
                       </span>
@@ -320,6 +349,7 @@ export const CollegeTable: React.FC<CollegeTableProps> = ({
                       <span
                         title="Officially verified bed count (Architecture.md §6)"
                         className="text-surgical inline-block ml-1 align-text-bottom"
+                        data-no-drag
                       >
                         <ShieldCheck className="w-3 h-3 inline" />
                       </span>

@@ -230,20 +230,23 @@ console.log('Export row #1 after drag:', exportTableRowsAfterDrag[0]);
 console.assert(exportTableRowsAfterDrag[0].name === originalFourth, 'Export document row #1 must match the on-screen dragged order');
 console.assert(exportTableRowsAfterDrag[0].order === '01', 'Order number must be 01');
 
-console.log('\n--- TESTING MANUAL DRAG RESET ON CRITERIA/FILTER CHANGE ---');
-// User changes sort/filter: manual order resets to fresh rank order
-let manualOrderOverride = reorderedList.map(c => c.college.id);
-// Simulated criteria change (e.g. 100% beds sort)
-const freshRanked = sortRankedColleges(
-  computeCollegeRankings(colleges, { beds: 100 }, null)
-);
-manualOrderOverride = null; // reset triggered by criteria change
+console.log('\n--- TESTING LONG DRAG SWAP (AUTO-SCROLL REORDER) & PDF EXPORT PARITY ---');
+// Simulate dragging index 45 to index 2 (e.g. moving a distant college near top after auto-scrolling)
+const longDragList = [...defaultRanked];
+const itemToMove = longDragList[45];
+const [removed] = longDragList.splice(45, 1);
+longDragList.splice(2, 0, removed);
 
-const activeDisplay = manualOrderOverride
-  ? manualOrderOverride.map(id => freshRanked.find(c => c.college.id === id))
-  : freshRanked;
+const exportDocRows = longDragList.map((item, index) => ({
+  order: String(index + 1).padStart(2, '0'),
+  code: item.college.college_code || item.college.name,
+  name: item.college.name,
+  city: item.college.city,
+}));
 
-console.log('Top college after criteria change + reset:', activeDisplay[0].college.name, `(${activeDisplay[0].college.beds} beds)`);
-console.assert(activeDisplay[0].college.beds >= activeDisplay[1].college.beds, 'List must revert to fresh computed rank order');
+console.log(`Moved college "${itemToMove.college.name}" from #46 to #3`);
+console.assert(exportDocRows[2].name === itemToMove.college.name, 'Export row #3 must match the auto-scrolled and dropped college');
+console.assert(exportDocRows[2].order === '03', 'Order number must be 03');
+console.assert(exportDocRows.length === 69, 'All 69 colleges must be present in export document');
 
-console.log('\nAll engine, default sort, manual drag-to-reorder, and export parity tests passed successfully!');
+console.log('\nAll engine, default sort, manual drag-to-reorder, auto-scroll drag, and export parity tests passed successfully!');

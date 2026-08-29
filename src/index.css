@@ -19,6 +19,13 @@ body {
   outline-offset: 2px;
 }
 
+/* Prevent callout magnifying glass and selection on draggable items on mobile */
+.select-none {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 /* Graceful degradation for reduced motion */
 @media (prefers-reduced-motion: reduce) {
   *,
