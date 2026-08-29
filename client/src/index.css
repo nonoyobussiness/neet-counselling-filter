@@ -1,0 +1,20 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background-color: #EFF3F3;
+  color: #152B3C;
+}
+
+/* Custom focus styles matching Design.md */
+*:focus-visible {
+  outline: 2px solid #3E7C74;
+  outline-offset: 2px;
+}
